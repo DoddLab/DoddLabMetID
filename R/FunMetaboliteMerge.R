@@ -1,4 +1,16 @@
 ################################################################################
+#' @title merge_one_modes
+#' @description merge multiple annotation using different database and parameter. Note: The input table should be same
+#' @author Zhiwei Zhou
+#' @param path '.'
+#' @param column 'hilic', 'c18'
+#' @param polarity 'positive', 'negative'
+#' @return
+#' @importFrom magrittr %>%
+#' @importFrom crayon blue red yellow green bgRed
+#' @importFrom stringr str_detect str_extract
+#' @export
+
 
 merge_one_modes <- function(path = '.',
                             column = c('hilic', 'c18'),
@@ -6,10 +18,10 @@ merge_one_modes <- function(path = '.',
   list_dir <- list.files(path)
   list_result <- vector(mode='list', length=3)
 
-  if ('01_metabolite_annotation_mz_rt_ms2' %in% list_dir) {
+  if ('01_metabolite_annotation_dodd_mz_rt_ms2' %in% list_dir) {
     message(crayon::blue('Read annotation result from dodd lib (mz + rt + ms2) ...\n'))
-    annot_table_mz_rt_ms2 <- readxl::read_xlsx(file.path(path, '01_metabolite_annotation_mz_rt_ms2/annotation_summary.xlsx'))
-    load(file.path(path, '01_metabolite_annotation_mz_rt_ms2', '00_intermediate_data', 'ms2'))
+    annot_table_mz_rt_ms2 <- readxl::read_xlsx(file.path(path, '01_metabolite_annotation_dodd_mz_rt_ms2/annotation_summary.xlsx'))
+    load(file.path(path, '01_metabolite_annotation_dodd_mz_rt_ms2', '00_intermediate_data', 'ms2'))
 
     # add inchikey1 & confidence level
     annot_table_mz_rt_ms2 <- annot_table_mz_rt_ms2 %>%
@@ -36,9 +48,9 @@ merge_one_modes <- function(path = '.',
     list_result[[1]] <- annot_table_mz_rt_ms2
   }
 
-  if ('01_metabolite_annotation_mz_rt' %in% list_dir) {
+  if ('01_metabolite_annotation_dodd_mz_rt' %in% list_dir) {
     message(crayon::blue('Read annotation result from dodd lib (mz + rt) ...\n'))
-    annot_table_mz_rt <- readxl::read_xlsx(file.path(path, '01_metabolite_annotation_mz_rt/annotation_summary.xlsx'))
+    annot_table_mz_rt <- readxl::read_xlsx(file.path(path, '01_metabolite_annotation_dodd_mz_rt/annotation_summary.xlsx'))
 
     # add inchikey1 & confidence level
     annot_table_mz_rt <- annot_table_mz_rt %>%
@@ -161,4 +173,6 @@ merge_one_modes <- function(path = '.',
                       path = file.path(path,
                                        paste0('annotation_table_merge_', column, '_', polarity, '.xlsx')),
                       format_headers = FALSE)
+
+  message(crayon::green('Done!'))
 }

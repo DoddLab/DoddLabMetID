@@ -1,16 +1,10 @@
+# DoddLabMeID (Dodd Lab Metabolite Identification )
+- Author: Zhiwei Zhou (zhouzw@stanford.edu)
+- Created: 03/14/2023
+- Last modified: 04/10/2023
 
-# DoddLabMeID (Dodd Lab Metabolite Identification)
-
-<!-- badges: start -->
-<!-- badges: end -->
-
-# Dodd Lab Untargeted Metabolomics Pipeline
-Author: Zhiwei Zhou (zhouzw@stanford.edu)
-
-## 1. Raw mass spectrometry processing
-
-## 2. DoddLabMeID (Dodd Lab Metabolite Identification )
-This document is a part of DoddLabMetabolomics project. This part is aimed to steamlize the metabolite identification workflow for untargeted metabolomics projects. 
+## Introduction
+This document is a part of DoddLabMetabolomics project. This part/package is aimed to steamlize the metabolite identification workflow for untargeted metabolomics projects. 
 
 The **R** based workflow is developed by Zhiwei Zhou. Please feel free to reach out Zhiwei (zhouzw@stanford.edu) if you have any questions.
 
@@ -28,7 +22,7 @@ The **R** based workflow is developed by Zhiwei Zhou. Please feel free to reach 
 ## Demo Data
 The demo datasets is from IBD project. The raw data is acquired in **HILIC** column & **poisitive** mode.
 - The **peak tables** contains 284 samples and 8338 features
-- The **MS/MS files** are acquired for pool QC samples using data dependent acquisition (DDA). 30 
+- The **MS/MS files** are acquired for pool QC samples using data dependent acquisition (DDA). 
 
 ## Installation
 The installation of required packages depends on the platform you use. This workflow is based on R, which requires installing some dependent packages first. 
@@ -57,10 +51,31 @@ devtools::install_github('DoddLab/DoddLabMetaboliteID')
 ```
 
 ### Docker
+#### 1. Install the WSL & Docker desktop
+https://learn.microsoft.com/en-us/windows/wsl/tutorials/wsl-containers
+
+#### 2. Load the `doddlabmetabolomics` images
+Download the newest docker [image](https://drive.google.com/drive/folders/1EQmXRtd57-uywytf_J8d7GXtBfkO_rKX?usp=share_link) 
 ```
-Coming soon!
+# load downloaded image
+docker load --input .\doddlabmetabolomics_1.0.01.tar
+
+# check the image whether installed
+docker images
 ```
 
+#### 3. Run docker container
+```
+# Run docker & open the 
+# Note: please replace path with the working directory. In the demo code, the working directory is ~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData
+
+docker run --rm -ti -e PASSWORD="123456" -p 8787:8787 -e DISABLE_AUTH=true -v ~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData:/home/rstudio/ doddlabmetabolomics:1.0.01
+```
+
+#### 4. Open broswer
+- Open the RStudio server with http://localhost:8787/
+
+![](https://raw.githubusercontent.com/JustinZZW/blogImg/main/202304101016826.png)
 
 ## Example Codes
 
@@ -155,13 +170,15 @@ annotate_metabolite(ms1_file = 'Peak_Table.csv',
 file.rename(from = file.path(path, '01_metabolite_annotation'),
             to = file.path(path, '01_metabolite_annotation_msdial'))
 
-# Merge them together
-
-
+# Merge them together, and assign the confidence level
+merge_one_modes(path = path, 
+                column = 'hilic',
+                polarity = 'positive')
 ```
 
 
 ## Parameters
+
 Here, it lists some **the most common parameters**. You can easily get detailed parameters in R using `?function_name`
 
 - **ms1_file**: The name of ms1 peak table. Column 1 is "name", Column 2 is "mz" and column is "rt".
@@ -181,6 +198,7 @@ Here, it lists some **the most common parameters**. You can easily get detailed 
 - **is_ms2_score**: Whether use MS/MS for annotation? TRUE or FALSE. If applied, the MS/MS disqualified candidates would be removed. 
 
 ## Results
+### Using Dodd library only
 Two files would be constructed in the working directory.
 - `01_metabolite_annotation`: This folder contains all results and intermidate data for following analysis, and checking. This folder would be introduced in below:
 - `ms2.msp`: all purified MS/MS spectra. It can be used for different tools, like GNPS, SIRIUS etc.
@@ -189,6 +207,8 @@ Two files would be constructed in the working directory.
 #### Files in the `01_metabolite_annotation` folder
 - `00_intermediate_data`: a folder contains all intermediate data. Only used for debug.
 - `02_experimental_ms2_spec_plot`: MS/MS plots. It will contain 2 pdf files. In default parametes, the only difference is the MS/MS score.
+    - example
+    ![](https://raw.githubusercontent.com/JustinZZW/blogImg/main/202304101057101.png)
 - `annotation_summary.xlsx`: This is a summary table of metabolite annotation. 
     - each row is one metabolite/candidate, each column is the parameters related to this candidate
         - feature_name: feature name, named as MxxxTxxx
@@ -215,5 +235,15 @@ It usually looks like below:
 ![](https://raw.githubusercontent.com/JustinZZW/blogImg/main/202303151620670.png)
 
 
-
-
+### Using Different Dodd libraries
+- This function will integrate multiple annotation approach, and generate the final annotation table
+- Most column is consistent to the Dodd library only
+- Different columns are provided below:
+    - with_ms2: whether have the MS2 spectrum. 1 (yes) or 0 (no)
+    - column: used column 
+    - polarity: use polarity
+    - inchikey1: the first-layer inchikey (14 characters). It represent a annotation without stereoisomers
+    - confidence:
+        - level 1: mz + RT + MS2
+        - level 2.1: mz + RT
+        - level 2.2: mz + MS-DIAL MS2

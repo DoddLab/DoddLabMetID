@@ -6,6 +6,7 @@
 \usage{
 annotate_metabolite(
   object = NULL,
+  parameter_set_annotation = NULL,
   ms1_file = "data.csv",
   ms2_file = NULL,
   ms2_type = c("mzML", "mzXML", "mgf", "msp"),
@@ -107,6 +108,34 @@ Return the annotation result.
 }
 \description{
 Annotate peak using MS/MS spectra in in-house database.
+}
+\examples{
+\dontrun{
+# directly assign parameter
+annotate_metabolite(ms1_file = 'Peak_Table.csv',
+                    ms2_type = 'mzML',
+                    path = '~/Project/00_IBD_project/Data/20230227_develop_metabolite_ID_workflow',
+                    polarity = 'positive',
+                    lib = 'dodd',
+                    column = 'hilic',
+                    ce = '20',
+                    adduct_list = '[M+H]+',
+                    mz_tol = 15,
+                    mz_ppm_thr = 150,
+                    pf_rt_range = 10,
+                    tolerance_rt_range = 20,
+                    is_rt_score = TRUE,
+                    is_ms2_score = TRUE)
+
+# use parameter set
+object <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData/',
+                                                lib = 'dodd',
+                                                ce = '20',
+                                                column = 'hilic',
+                                                polarity = 'positive',
+                                                is_rt_score = TRUE,
+                                                is_ms2_score = TRUE)
+}
 }
 \author{
 Zhiwei Zhou

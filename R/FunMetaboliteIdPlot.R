@@ -91,7 +91,7 @@ plot_id_ms2 <- function(
                   1.05*max(temp_data$mz)) +
     ggplot2::xlab('m/z') +
     ggplot2::ylab('Relative intensity') +
-    ZZWtool::ZZWTheme() +
+    ZZWTheme() +
     # ggplot2::ggtitle(label = paste0(obj_ms2@info$name, '{',
     #                                 round(obj_ms2@info$scoreForward, 4), '}')) +
     ggplot2::theme(legend.position = c(0.8, 0.75),
@@ -231,3 +231,88 @@ plot_id_shift_ms2 <- function(
 }
 
 
+
+#   annotate_text2 ---------------------------------------------------------------
+annotate_text2 <- function(label, x, y, facets=NULL, hjust=0, vjust=0, color='black', alpha=NA,
+                           family=thm$text$family, size=thm$text$size, fontface=1, lineheight=1.0,
+                           box_just=ifelse(c(x,y)<0.5,0,1), margin=ggplot2::unit(size/2, 'pt'), thm=ggplot2::theme_get()) {
+  x <- scales::squish_infinite(x)
+  y <- scales::squish_infinite(y)
+  data <- if (is.null(facets)) data.frame(x=NA) else data.frame(x=NA, facets)
+
+  tg <- grid::textGrob(
+    label, x=0, y=0, hjust=hjust, vjust=vjust,
+    gp=grid::gpar(col=ggplot2::alpha(color, alpha), fontsize=size, fontfamily=family, fontface=fontface, lineheight=lineheight)
+  )
+  ts <- grid::unit.c(grid::grobWidth(tg), grid::grobHeight(tg))
+  vp <- grid::viewport(x=x, y=y, width=ts[1], height=ts[2], just=box_just)
+  tg <- grid::editGrob(tg, x=ts[1]*hjust, y=ts[2]*vjust, vp=vp)
+  inner <- grid::grobTree(tg, vp=grid::viewport(width=ggplot2::unit(1, 'npc')-margin*2, height=ggplot2::unit(1, 'npc')-margin*2))
+
+  ggplot2::layer(
+    data = NULL,
+    stat = ggplot2::StatIdentity,
+    position = ggplot2::PositionIdentity,
+    geom = ggplot2::GeomCustomAnn,
+    inherit.aes = TRUE,
+    params = list(
+      grob=grid::grobTree(inner),
+      xmin=-Inf,
+      xmax=Inf,
+      ymin=-Inf,
+      ymax=Inf
+    )
+  )
+}
+
+
+
+setGeneric(name = 'ZZWTheme',
+           def = function(
+    type = c('common', 'classic')
+           ){
+
+             type <- match.arg(type)
+             switch (type,
+                     'common' = {
+                       result <- ggplot2::theme_bw() +
+                         ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.4,
+                                                                           face = "bold",
+                                                                           size = 14),
+                                        panel.grid.major = ggplot2::element_blank(),
+                                        panel.grid.minor = ggplot2::element_blank(),
+                                        panel.background = ggplot2::element_blank(),
+                                        panel.border = ggplot2::element_rect(fill = NA, colour = 'black'),
+                                        legend.background = ggplot2::element_blank(),
+                                        axis.text.x = ggplot2::element_text(size = 10, colour = 'black'),
+                                        axis.text.y = ggplot2::element_text(size = 10, angle = 90,
+                                                                            colour = 'black'),
+                                        axis.title.x = ggplot2::element_text(size = 12, colour = 'black'),
+                                        axis.title.y = ggplot2::element_text(size = 12, colour = 'black'),
+                                        axis.ticks = ggplot2::element_line(colour = 'black'))
+                     },
+                     'classic' = {
+                       result <- ggplot2::theme_classic() +
+                         ggplot2::theme(plot.title = ggplot2::element_text(hjust = 0.4,
+                                                                           face = "bold",
+                                                                           size = 14),
+                                        panel.grid.major = ggplot2::element_blank(),
+                                        panel.grid.minor = ggplot2::element_blank(),
+                                        panel.background = ggplot2::element_rect(fill = NA, colour = NA),
+                                        # panel.border = ggplot2::element_rect(fill = NA, colour = 'black'),
+                                        legend.background = ggplot2::element_blank(),
+                                        axis.line = ggplot2::element_line(colour = 'black'),
+                                        axis.text.x = ggplot2::element_text(size = 10, colour = 'black'),
+                                        axis.text.y = ggplot2::element_text(size = 10, angle = 90,
+                                                                            colour = 'black'),
+                                        axis.title.x = ggplot2::element_text(size = 12, colour = 'black'),
+                                        axis.title.y = ggplot2::element_text(size = 12, colour = 'black'),
+                                        axis.ticks = ggplot2::element_line(colour = 'black'))
+                     }
+             )
+
+
+
+             return(result)
+           }
+)

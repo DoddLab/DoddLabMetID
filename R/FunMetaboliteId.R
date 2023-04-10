@@ -1,6 +1,6 @@
 ################################################################################
 # Metabolite identification Main function --------------------------------------
-# annotate_metabolite --------------------------------------------------------
+  # annotate_metabolite --------------------------------------------------------
 
 #' @title annotate_metabolite
 #' @description Annotate peak using MS/MS spectra in in-house database.
@@ -45,9 +45,59 @@
 #' @importFrom stringr str_detect str_extract
 #' @importClassesFrom SpectraTools 'SpectraData'
 #' @export
+#' @examples
+#' \dontrun{
+#' # directly assign parameter
+#' annotate_metabolite(ms1_file = 'Peak_Table.csv',
+#'                     ms2_type = 'mzML',
+#'                     path = '~/Project/00_IBD_project/Data/20230227_develop_metabolite_ID_workflow',
+#'                     polarity = 'positive',
+#'                     lib = 'dodd',
+#'                     column = 'hilic',
+#'                     ce = '20',
+#'                     adduct_list = '[M+H]+',
+#'                     mz_tol = 15,
+#'                     mz_ppm_thr = 150,
+#'                     pf_rt_range = 10,
+#'                     tolerance_rt_range = 20,
+#'                     is_rt_score = TRUE,
+#'                     is_ms2_score = TRUE)
+#'
+#' # use parameter set
+#' object <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData/',
+#'                                                 lib = 'dodd',
+#'                                                 ce = '20',
+#'                                                 column = 'hilic',
+#'                                                 polarity = 'positive',
+#'                                                 is_rt_score = TRUE,
+#'                                                 is_ms2_score = TRUE)
+#' }
+#
+# parameter_set_annotation <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData/',
+#                                                                   lib = 'dodd',
+#                                                                   ce = '20',
+#                                                                   column = 'hilic',
+#                                                                   polarity = 'positive',
+#                                                                   is_rt_score = TRUE,
+#                                                                   is_ms2_score = TRUE)
+# annotate_metabolite(parameter_set_annotation = parameter_set_annotation)
 
-
-
+#
+# annotate_metabolite(ms1_file = 'Peak_Table.csv',
+#                     ms2_type = 'mzML',
+#                     path = '~/Project/00_IBD_project/Data/20230227_develop_metabolite_ID_workflow',
+#                     polarity = 'positive',
+#                     lib = 'dodd',
+#                     column = 'hilic',
+#                     ce = '20',
+#                     adduct_list = '[M+H]+',
+#                     mz_tol = 15,
+#                     mz_ppm_thr = 150,
+#                     pf_rt_range = 10,
+#                     tolerance_rt_range = 20,
+#                     scoring_approach = 'gnps',
+#                     is_rt_score = TRUE,
+#                     is_ms2_score = TRUE)
 
 # load('~/Project/00_IBD_project/Data/20230207_data_cleaning_IBD/HILIC_pos/02_data_cleaning/05_object_hilic_pos_outlier_removal.RData')
 # object <- object_hilic_pos;rm(object_hilic_pos);gc()
@@ -81,11 +131,14 @@
 # dp_cutoff = 0.8
 # matched_frag_cutoff = 1
 # direction = c('forward')
-# scoring_approach = c('dp')
+# # scoring_approach = c('dp')
+# scoring_approach = c('gnps')
 
+# initialize_annotation_parameter_class(ms1_file = 'data.csv')
 
 setGeneric(name = "annotate_metabolite",
            def = function(object = NULL,
+                          parameter_set_annotation = NULL,
                           ms1_file = "data.csv",
                           ms2_file = NULL,
                           ms2_type = c('mzML', "mzXML", "mgf", "msp"),
@@ -122,6 +175,44 @@ setGeneric(name = "annotate_metabolite",
                           # plots
                           is_plot_ms2 = TRUE
            ){
+
+             # load parameter set if it existed
+             if (!is.null(parameter_set_annotation)) {
+               if (class(parameter_set_annotation) != "AnnotationParameterClass") {
+                 stop('The parameter_set_annotation must be AnnotationParameterClass object')
+               }
+
+               # assign parameter from parameter set
+               ms1_file <- parameter_set_annotation@para_general$ms1_file
+               ms2_type <- parameter_set_annotation@para_general$ms2_type
+               path <- parameter_set_annotation@para_general$path
+               polarity <- parameter_set_annotation@para_general$polarity
+               is_rt_score <- parameter_set_annotation@para_general$is_rt_score
+               is_ms2_score <- parameter_set_annotation@para_general$is_ms2_score
+
+               lib <- parameter_set_annotation@para_load_db$lib
+               column <- parameter_set_annotation@para_load_db$column
+               ce <- parameter_set_annotation@para_load_db$ce
+               adduct_list <- parameter_set_annotation@para_load_db$adduct_list
+
+               mz_tol <- parameter_set_annotation@para_ms1_match$mz_tol
+               mz_ppm_thr <- parameter_set_annotation@para_ms1_match$mz_ppm_thr
+               pf_rt_range <- parameter_set_annotation@para_ms1_match$pf_rt_range
+               tolerance_rt_range <- parameter_set_annotation@para_ms1_match$tolerance_rt_range
+
+               is_include_precursor <- parameter_set_annotation@para_ms2_match$is_include_precursor
+               int_ms2_min_abs <- parameter_set_annotation@para_ms2_match$int_ms2_min_abs
+               int_ms2_min_relative <- parameter_set_annotation@para_ms2_match$int_ms2_min_relative
+               mz_tol_combine_ms1_ms2 <- parameter_set_annotation@para_ms2_match$mz_tol_combine_ms1_ms2
+               rt_tol_combine_ms1_ms2 <- parameter_set_annotation@para_ms2_match$rt_tol_combine_ms1_ms2
+               mz_tol_ms2 <- parameter_set_annotation@para_ms2_match$mz_tol_ms2
+               dp_cutoff <- parameter_set_annotation@para_ms2_match$dp_cutoff
+               matched_frag_cutoff <- parameter_set_annotation@para_ms2_match$matched_frag_cutoff
+               direction <- parameter_set_annotation@para_ms2_match$direction
+               scoring_approach <- parameter_set_annotation@para_ms2_match$scoring_approach
+               is_plot_ms2 <- parameter_set_annotation@para_ms2_match$is_plot_ms2
+             }
+
              polarity <- match.arg(polarity)
              column <- match.arg(column)
              ms2_type <- match.arg(ms2_type)
@@ -135,7 +226,22 @@ setGeneric(name = "annotate_metabolite",
              # check ms1_file and ms2_file
              if (is.null(object)) {
                temp <- list.files(path = path, pattern = ms1_file, recursive = TRUE)
-               if (length(temp) == 0) {stop("There is no", ms1_file, '\n')}
+               temp2 <- list.files(path = path, pattern = 'Peak-table.csv', recursive = TRUE)
+
+               # if it detects Peak-table.csv, it will recognize the raw data table existed and modify the peak table automatically
+               if (length(temp2) != 0) {
+                 temp_data <- readr::read_csv(file.path(path, temp2), show_col_types = FALSE) %>%
+                   dplyr::select(-c('mzmin','mzmax', 'rtmin', 'rtmax')) %>%
+                   dplyr::select(-(npeaks:maxint)) %>%
+                   dplyr::rename('mz' = 'mzmed',
+                                 'rt' = 'rtmed')
+
+                 readr::write_csv(temp_data, file = file.path(path, 'data.csv'))
+                 rm(temp_data);gc()
+               }
+
+               if (length(temp) == 0 & length(temp2) == 0) {stop("There is no", ms1_file, '\n')}
+
                temp <- list.files(path = path, pattern = paste0("\\.", ms2_type), recursive = TRUE)
                if (length(temp) == 0) {stop("There is no", ms2_type, '\n')}
              }
@@ -449,342 +555,204 @@ setGeneric(name = "annotate_metabolite",
 
              if (is_plot_ms2 & is_ms2_score & is_ms2_candidates) {
                load(file.path(path_output, '00_intermediate_data', 'ms2_result'))
+               load(file.path(path_output, '00_intermediate_data', 'annot_table'))
 
                cat('\n')
 
                if (scoring_approach == 'dp') {
-                 purrr::walk(c('forward', 'reverse'), function(x){
-                   cat('Plot', x, 'spec match...\n')
+                 cat('Plot ms2 spec match...\n')
+                 plot_list <- pbapply::pblapply(seq_along(annot_table$feature_name), function(i){
+                   temp_result <- annot_table %>%
+                     dplyr::slice(i)
 
-                   if (x == 'forward') {
-                     temp_result <- annot_table %>%
-                       dplyr::rename(ms2_score = msms_score_forward)
-                   } else {
-                     temp_result <- annot_table %>%
-                       dplyr::rename(ms2_score = msms_score_reverse)
-                   }
+                   temp_feature_name <- temp_result$feature_name
+                   temp_feature_mz <- temp_result$mz
+                   temp_feature_rt <- temp_result$rt
+                   temp_cpd_id <- temp_result$id
+                   temp_cpd_name <- temp_result$name
+                   temp_adduct <- temp_result$adduct
+                   temp_mz_error <- temp_result$mz_error
+                   temp_rt_error <- temp_result$rt_error
+                   temp_ms2_score_forward <- temp_result$msms_score_forward
+                   temp_ms2_score_reverse <- temp_result$msms_score_reverse
+                   temp_ms2_match_fragment <- temp_result$msms_matched_frag
+                   temp_mz_lib <- temp_result$mz_lib
+                   temp_rt_lib <- temp_result$rt_lib
+                   temp_smiles <- temp_result$smiles
+                   temp_inchikey <- temp_result$inchikey
 
-                   plot_list <- pbapply::pblapply(seq_along(temp_result$name), function(i){
-                     # cat(i, ' ')
-                     temp_feature_name <- temp_result$feature_name[i]
+                   temp_ms2_obj <- which(names(ms2_result) == temp_feature_name) %>%
+                     ms2_result[[.]]
+                   temp_ms2_obj <- which(temp_ms2_obj@info$name == temp_cpd_id) %>%
+                     temp_ms2_obj@matchedFragments[[.]]
 
-                     cpd_id <- temp_result$id[i]
-                     cpd_name <- temp_result$name[i]
-                     cpd_score <- temp_result$ms2_score[i]
+                   text <- paste(c(
+                     paste0('Feature: ', temp_feature_name),
+                     paste0('Feature m/z: ', round(temp_feature_mz, 4)),
+                     paste0('Feature RT: ', round(temp_feature_rt, 1)),
+                     paste0('Compound ID: ', temp_cpd_id),
+                     paste0('Compound name: ', temp_cpd_name),
+                     paste0('Adduct: ', temp_adduct),
+                     paste0('SMILES: ', temp_smiles),
+                     paste0('InChIKey: ', temp_inchikey),
+                     paste0('m/z lib: ', round(temp_mz_lib, 4)),
+                     paste0('m/z error: ', temp_mz_error),
+                     paste0('RT lib: ', temp_rt_lib),
+                     paste0('RT error: ', temp_rt_error),
+                     paste0('MS2 score forward: ', temp_ms2_score_forward),
+                     paste0('MS2 score reverse: ', temp_ms2_score_reverse),
+                     paste0('MS2 matched frag.: ', temp_ms2_match_fragment)
+                   ),
+                   collapse = '\n')
 
-                     idx <- which(names(ms2_result) == temp_feature_name)
-                     temp_ms2_obj <- ms2_result[[idx]]
-
-                     # need to be fix
-                     idx_id <- match(cpd_id, temp_ms2_obj@info$name)
-
-                     plot_list <- purrr::map(seq_along(idx_id), function(j){
-                       temp_idx <- idx_id[j]
-                       suppressMessages(
-                         temp_plot <- plot_id_ms2(obj_spec = temp_ms2_obj@matchedFragments[[temp_idx]]) +
-                           ggplot2::scale_colour_manual(
-                             name = 'Attribute',
-                             labels= c(paste0('Experiment ', '(', temp_feature_name, ')'),
-                                       'Unmatched fragments',
-                                       paste0('Library ', '(', cpd_id, ')')),
-                             values = c(
-                               'experiment' = 'black',
-                               'library' = 'red',
-                               'frag_unmatch' = 'gray'
-                             )
-                           ) +
-                           ggplot2::scale_shape_manual(
-                             name = 'Label',
-                             labels= c('matched' = "Matched",
-                                       'unmatched' = "Unmatched"),
-                             values = c(
-                               'matched' = 16,
-                               'unmatched' = 4
-                             )
-                           ) +
-                           ggplot2::ggtitle(label = paste0(temp_feature_name,
-                                                           ': ', cpd_name[j],
-                                                           ' (ID: ', cpd_id[j],
-                                                           ', DP: ', cpd_score[j],
-                                                           ')')) +
-                           ggplot2::theme(legend.position = c(0.85, 0.85),
-                                          title = ggplot2::element_text(vjust = 0.5))
-                       )
-                       return(temp_plot)
-                     })
-
-                     return(plot_list)
-
-                   })
-
-                   # export plot list as one pdf
-                   plot_list <- do.call(c, plot_list)
-                   dir.create(file.path(path_output, '02_experimental_ms2_spec_plot'),
-                              showWarnings = FALSE, recursive = TRUE)
-                   ggplot2::ggsave(
-                     filename = file.path(path_output,
-                                          '02_experimental_ms2_spec_plot',
-                                          paste0('ms2_match_plot_', x, '.pdf')),
-                     plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1),
-                     width = 15, height = 9
+                   suppressMessages(
+                     temp_plot <- DoddLabMetID::plot_id_ms2(obj_spec = temp_ms2_obj) +
+                       ggplot2::scale_colour_manual(
+                         name = 'Attribute',
+                         labels= c(paste0('Experiment'),
+                                   'Unmatched fragments',
+                                   paste0('Library ')),
+                         values = c(
+                           'experiment' = 'black',
+                           'library' = 'red',
+                           'frag_unmatch' = 'gray'
+                         )
+                       ) +
+                       ggplot2::scale_shape_manual(
+                         name = 'Label',
+                         labels= c('matched' = "Matched",
+                                   'unmatched' = "Unmatched"),
+                         values = c(
+                           'matched' = 16,
+                           'unmatched' = 4
+                         )
+                       ) +
+                       ggplot2::ggtitle(label = paste0(temp_feature_name,
+                                                       ': ', temp_cpd_name,
+                                                       ' (ID: ', temp_cpd_id,
+                                                       ')')) +
+                       annotate_text2(label = text, x = 0, y = 1) +
+                       ggplot2::theme(legend.position = c(0.85, 0.85),
+                                      title = ggplot2::element_text(vjust = 0.5))
                    )
 
-                   cat('\n\n')
-                 })
+                   return(temp_plot)
 
-
-                 # purrr::walk(c('forward', 'reverse'), function(x){
-                 #   cat('Plot', x, 'spec match...\n')
-                 #
-                 #   if (x == 'forward') {
-                 #     temp_result <- table_annotation %>%
-                 #       dplyr::filter(!is.na(id_forward_summary)) %>%
-                 #       dplyr::rename(id = id_forward_summary)
-                 #   } else {
-                 #     temp_result <- table_annotation %>%
-                 #       dplyr::filter(!is.na(id_reverse_summary)) %>%
-                 #       dplyr::rename(id = id_reverse_summary)
-                 #   }
-                 #
-                 #   plot_list <- purrr::map(seq_along(temp_result$name), function(i){
-                 #     cat(i, ' ')
-                 #     temp_feature_name <- temp_result$name[i]
-                 #
-                 #     temp_id <- temp_result %>%
-                 #       dplyr::filter(name == temp_feature_name) %>%
-                 #       dplyr::select(name:rt, id) %>%
-                 #       tidyr::separate_rows(id, sep = '\\};') %>%
-                 #       dplyr::pull(id)
-                 #     cpd_id <- temp_id %>%
-                 #       stringr::str_extract(pattern = 'labid\\{[A-Za-z0-9]+\\}') %>%
-                 #       gsub(pattern = 'labid\\{', replacement = '') %>%
-                 #       gsub(pattern = '\\}', replacement = '')
-                 #     cpd_name <- temp_id %>%
-                 #       stringr::str_extract(pattern = "name\\{[^\\{]+\\}") %>%
-                 #       gsub(pattern = 'name\\{', replacement = '') %>%
-                 #       gsub(pattern = '\\}', replacement = '')
-                 #     cpd_score <- temp_id %>%
-                 #       stringr::str_extract(pattern = 'score\\{0\\.[0-9]+\\}|score\\{1\\}') %>%
-                 #       gsub(pattern = 'score\\{', replacement = '') %>%
-                 #       gsub(pattern = '\\}', replacement = '')
-                 #
-                 #     idx <- which(names(ms2_result) == temp_feature_name)
-                 #     temp_ms2_obj <- ms2_result[[idx]]
-                 #
-                 #     # need to be fix
-                 #     idx_id <- match(cpd_id, temp_ms2_obj@info$name)
-                 #
-                 #     plot_list <- purrr::map(seq_along(idx_id), function(j){
-                 #       temp_idx <- idx_id[j]
-                 #       suppressMessages(
-                 #         temp_plot <- plot_id_ms2(obj_spec = temp_ms2_obj@matchedFragments[[temp_idx]]) +
-                 #           ggplot2::scale_colour_manual(
-                 #             name = 'Attribute',
-                 #             labels= c(paste0('Experiment ', '(', temp_feature_name, ')'),
-                 #                       'Unmatched fragments',
-                 #                       paste0('Library ', '(', cpd_id, ')')),
-                 #             values = c(
-                 #               'experiment' = 'black',
-                 #               'library' = 'red',
-                 #               'frag_unmatch' = 'gray'
-                 #             )
-                 #           ) +
-                 #           ggplot2::scale_shape_manual(
-                 #             name = 'Label',
-                 #             labels= c('matched' = "Matched",
-                 #                       'unmatched' = "Unmatched"),
-                 #             values = c(
-                 #               'matched' = 16,
-                 #               'unmatched' = 4
-                 #             )
-                 #           ) +
-                 #           ggplot2::ggtitle(label = paste0(temp_feature_name,
-                 #                                           ': ', cpd_name[j],
-                 #                                           ' (ID: ', cpd_id[j],
-                 #                                           ', DP: ', cpd_score[j],
-                 #                                           ')')) +
-                 #           ggplot2::theme(legend.position = c(0.85, 0.85),
-                 #                          title = ggplot2::element_text(vjust = 0.5))
-                 #       )
-                 #       return(temp_plot)
-                 #     })
-                 #
-                 #     return(plot_list)
-                 #
-                 #   })
-                 #
-                 #   # export plot list as one pdf
-                 #   plot_list <- do.call(c, plot_list)
-                 #   dir.create(file.path(path_output, '02_experimental_ms2_spec_plot'),
-                 #              showWarnings = FALSE, recursive = TRUE)
-                 #   ggplot2::ggsave(
-                 #     filename = file.path(path_output,
-                 #                          '02_experimental_ms2_spec_plot',
-                 #                          paste0('ms2_match_plot_', x, '.pdf')),
-                 #     plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1),
-                 #     width = 15, height = 9
-                 #   )
-                 #
-                 #   cat('\n\n')
-                 # })
-               } else {
-                 cat('Plot shifted spec match...\n')
-
-                 temp_result <- annot_table %>%
-                   dplyr::rename(ms2_score = id_reverse_summary)
-
-                 plot_list <- purrr::map(seq_along(temp_result$name), function(i){
-
-                   temp_feature_name <- temp_result$feature_name[i]
-
-                   cpd_id <- temp_result$id[i]
-                   cpd_name <- temp_result$name[i]
-                   cpd_score <- temp_result$ms2_score[i]
-
-                   idx <- which(names(ms2_result) == temp_feature_name)
-                   temp_ms2_obj <- ms2_result[[idx]]
-
-                   idx_id <- match(cpd_id, temp_ms2_obj@info$name)
-
-                   plot_list <- purrr::map(seq_along(idx_id), function(j){
-                     temp_idx <- idx_id[j]
-                     suppressMessages(
-                       temp_plot <- plot_id_shift_ms2(obj_spec_frag_match = temp_ms2_obj@matchedFragments[[temp_idx]],
-                                                      obj_spec_frag_nl = temp_ms2_obj@nlFragments[[temp_idx]]) +
-                         ggplot2::scale_colour_manual(
-                           name = 'Attribute',
-                           labels= c(paste0('Experiment ', '(', temp_feature_name, ')'),
-                                     'Unmatched fragments',
-                                     paste0('Library ', '(', temp_ms2_obj@info$name[temp_idx], ')'),
-                                     paste0('Library shift', '(', temp_ms2_obj@info$name[temp_idx], ')')),
-                           values = c(
-                             'experiment' = 'black',
-                             'library' = 'red',
-                             'frag_unmatch' = 'gray',
-                             'library_shift' = 'blue'
-                           )
-                         ) +
-                         ggplot2::scale_shape_manual(
-                           name = 'Label',
-                           labels= c('matched' = "Matched",
-                                     'unmatched' = "Unmatched"),
-                           values = c(
-                             'matched' = 16,
-                             'unmatched' = 4
-                           )
-                         ) +
-                         ggplot2::ggtitle(label = paste0(temp_feature_name,
-                                                         ': ', cpd_name[j],
-                                                         ' (ID: ', cpd_id[j],
-                                                         ', DP: ', cpd_score[j],
-                                                         ')')) +
-                         ggplot2::theme(legend.position = c(0.85, 0.85),
-                                        title = ggplot2::element_text(vjust = 0.5))
-
-                     )
-
-                     return(temp_plot)
-                   })
-
-                   return(plot_list)
                  })
 
                  # export plot list as one pdf
-                 plot_list <- do.call(c, plot_list)
                  dir.create(file.path(path_output, '02_experimental_ms2_spec_plot'),
                             showWarnings = FALSE, recursive = TRUE)
                  ggplot2::ggsave(
                    filename = file.path(path_output,
                                         '02_experimental_ms2_spec_plot',
-                                        paste0('ms2_match_plot_', scoring_approach, '.pdf')),
+                                        paste0('ms2_match_mirror_plot', '.pdf')),
                    plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1),
                    width = 15, height = 9
                  )
 
-                 # temp_result <- table_annotation %>%
-                 #   dplyr::filter(!is.na(id_reverse_summary)) %>%
-                 #   dplyr::rename(id = id_reverse_summary)
-                 #
-                 # plot_list <- purrr::map(seq_along(temp_result$name), function(i){
-                 #   temp_feature_name <- temp_result$name[i]
-                 #   temp_id <- temp_result %>%
-                 #     dplyr::filter(name == temp_feature_name) %>%
-                 #     dplyr::select(name:rt, id) %>%
-                 #     tidyr::separate_rows(id, sep = ';score') %>%
-                 #     dplyr::pull(id)
-                 #
-                 #   cpd_id <- temp_id %>%
-                 #     stringr::str_extract(pattern = 'labid\\{[A-Za-z0-9]+\\}') %>%
-                 #     gsub(pattern = 'labid\\{', replacement = '') %>%
-                 #     gsub(pattern = '\\}', replacement = '')
-                 #   cpd_name <- temp_id %>%
-                 #     stringr::str_extract(pattern = "name\\{[^\\{]+\\}") %>%
-                 #     gsub(pattern = 'name\\{', replacement = '') %>%
-                 #     gsub(pattern = '\\}', replacement = '')
-                 #   cpd_score <- temp_id %>%
-                 #     stringr::str_extract(pattern = 'score\\{0\\.[0-9]+\\}|score\\{1\\}') %>%
-                 #     gsub(pattern = 'score\\{', replacement = '') %>%
-                 #     gsub(pattern = '\\}', replacement = '')
-                 #
-                 #   idx <- which(names(ms2_result) == temp_feature_name)
-                 #   temp_ms2_obj <- ms2_result[[idx]]
-                 #
-                 #   idx_id <- match(cpd_id, temp_ms2_obj@info$name)
-                 #
-                 #   plot_list <- purrr::map(seq_along(idx_id), function(j){
-                 #     temp_idx <- idx_id[j]
-                 #     suppressMessages(
-                 #       temp_plot <- plot_id_shift_ms2(obj_spec_frag_match = temp_ms2_obj@matchedFragments[[temp_idx]],
-                 #                                      obj_spec_frag_nl = temp_ms2_obj@nlFragments[[temp_idx]]) +
-                 #         ggplot2::scale_colour_manual(
-                 #           name = 'Attribute',
-                 #           labels= c(paste0('Experiment ', '(', temp_feature_name, ')'),
-                 #                     'Unmatched fragments',
-                 #                     paste0('Library ', '(', temp_ms2_obj@info$name[temp_idx], ')'),
-                 #                     paste0('Library shift', '(', temp_ms2_obj@info$name[temp_idx], ')')),
-                 #           values = c(
-                 #             'experiment' = 'black',
-                 #             'library' = 'red',
-                 #             'frag_unmatch' = 'gray',
-                 #             'library_shift' = 'blue'
-                 #           )
-                 #         ) +
-                 #         ggplot2::scale_shape_manual(
-                 #           name = 'Label',
-                 #           labels= c('matched' = "Matched",
-                 #                     'unmatched' = "Unmatched"),
-                 #           values = c(
-                 #             'matched' = 16,
-                 #             'unmatched' = 4
-                 #           )
-                 #         ) +
-                 #         ggplot2::ggtitle(label = paste0(temp_feature_name,
-                 #                                         ': ', cpd_name[j],
-                 #                                         ' (ID: ', cpd_id[j],
-                 #                                         ', DP: ', cpd_score[j],
-                 #                                         ')')) +
-                 #         ggplot2::theme(legend.position = c(0.85, 0.85),
-                 #                        title = ggplot2::element_text(vjust = 0.5))
-                 #
-                 #     )
-                 #
-                 #     return(temp_plot)
-                 #   })
-                 #
-                 #   return(plot_list)
-                 # })
-                 #
-                 # # export plot list as one pdf
-                 # plot_list <- do.call(c, plot_list)
-                 # dir.create(file.path(path_output, '02_experimental_ms2_spec_plot'),
-                 #            showWarnings = FALSE, recursive = TRUE)
-                 # ggplot2::ggsave(
-                 #   filename = file.path(path_output,
-                 #                        '02_experimental_ms2_spec_plot',
-                 #                        paste0('ms2_match_plot_', scoring_approach, '.pdf')),
-                 #   plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1),
-                 #   width = 15, height = 9
-                 # )
+                 cat('\n\n')
+
+
+
+               } else {
+                 cat('Plot shifted spec match...\n')
+
+                 plot_list <- pbapply::pblapply(seq_along(annot_table$feature_name), function(i){
+                   # cat(i, ' ')
+                   temp_result <- annot_table %>%
+                     dplyr::slice(i)
+
+                   temp_feature_name <- temp_result$feature_name
+                   temp_feature_mz <- temp_result$mz
+                   temp_feature_rt <- temp_result$rt
+                   temp_cpd_id <- temp_result$id
+                   temp_cpd_name <- temp_result$name
+                   temp_adduct <- temp_result$adduct
+                   temp_mz_error <- temp_result$mz_error
+                   temp_rt_error <- temp_result$rt_error
+                   temp_ms2_score_forward <- temp_result$msms_score_forward
+                   temp_ms2_score_reverse <- temp_result$msms_score_reverse
+                   temp_ms2_match_fragment <- temp_result$msms_matched_frag
+                   temp_mz_lib <- temp_result$mz_lib
+                   temp_rt_lib <- temp_result$rt_lib
+                   temp_smiles <- temp_result$smiles
+                   temp_inchikey <- temp_result$inchikey
+
+                   temp_ms2_obj <- which(names(ms2_result) == temp_feature_name) %>%
+                     ms2_result[[.]]
+                   temp_ms2_obj_1 <- which(temp_ms2_obj@info$name == temp_cpd_id) %>%
+                     temp_ms2_obj@matchedFragments[[.]]
+                   temp_ms2_obj_2 <- which(temp_ms2_obj@info$name == temp_cpd_id) %>%
+                     temp_ms2_obj@nlFragments[[.]]
+
+                   text <- paste(c(
+                     paste0('Feature: ', temp_feature_name),
+                     paste0('Feature m/z: ', round(temp_feature_mz, 4)),
+                     paste0('Feature RT: ', round(temp_feature_rt, 1)),
+                     paste0('Compound ID: ', temp_cpd_id),
+                     paste0('Compound name: ', temp_cpd_name),
+                     paste0('Adduct: ', temp_adduct),
+                     paste0('SMILES: ', temp_smiles),
+                     paste0('InChIKey: ', temp_inchikey),
+                     paste0('m/z lib: ', round(temp_mz_lib, 4)),
+                     paste0('m/z error: ', temp_mz_error),
+                     paste0('RT lib: ', temp_rt_lib),
+                     paste0('RT error: ', temp_rt_error),
+                     # paste0('MS2 score forward: ', temp_ms2_score_forward),
+                     paste0('MS2 score: ', temp_ms2_score_reverse),
+                     paste0('MS2 matched frag.: ', temp_ms2_match_fragment)
+                   ),
+                   collapse = '\n')
+
+                   suppressMessages(
+                     temp_plot <- plot_id_shift_ms2(obj_spec_frag_match = temp_ms2_obj_1,
+                                                    obj_spec_frag_nl = temp_ms2_obj_2) +
+                       ggplot2::scale_colour_manual(
+                         name = 'Attribute',
+                         labels= c(paste0('Experiment ', '(', temp_feature_name, ')'),
+                                   'Unmatched fragments',
+                                   paste0('Library ', '(', temp_cpd_id, ')'),
+                                   paste0('Library shift', '(', temp_cpd_id, ')')),
+                         values = c(
+                           'experiment' = 'black',
+                           'library' = 'red',
+                           'frag_unmatch' = 'gray',
+                           'library_shift' = 'blue'
+                         )
+                       ) +
+                       ggplot2::scale_shape_manual(
+                         name = 'Label',
+                         labels= c('matched' = "Matched",
+                                   'unmatched' = "Unmatched"),
+                         values = c(
+                           'matched' = 16,
+                           'unmatched' = 4
+                         )
+                       ) +
+                       ggplot2::ggtitle(label = paste0(temp_feature_name,
+                                                       ': ', temp_cpd_name,
+                                                       ' (ID: ', temp_cpd_id,
+                                                       ')')) +
+                       annotate_text2(label = text, x = 0, y = 1) +
+                       ggplot2::theme(legend.position = c(0.85, 0.85),
+                                      title = ggplot2::element_text(vjust = 0.5))
+                   )
+
+                   return(temp_plot)
+
+                 })
+
+                 # export plot list as one pdf
+                 dir.create(file.path(path_output, '02_experimental_ms2_spec_plot'),
+                            showWarnings = FALSE, recursive = TRUE)
+                 ggplot2::ggsave(
+                   filename = file.path(path_output,
+                                        '02_experimental_ms2_spec_plot',
+                                        paste0('ms2_match_mirror_plot', '.pdf')),
+                   plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1),
+                   width = 15, height = 9
+                 )
 
                  cat('\n\n')
 
@@ -797,6 +765,170 @@ setGeneric(name = "annotate_metabolite",
            })
 
 
+################################################################################
+# AnnotationParameterClass -----------------------------------------------------
+  # class ----------------------------------------------------------------------
+setClass(Class = "AnnotationParameterClass",
+         representation(name = "character",
+                        para_general = "list",
+                        para_load_db = "list",
+                        para_ms1_match = "list",
+                        para_ms2_match = "list")
+)
+
+  # show method ----------------------------------------------------------------
+setMethod(f = "show",
+          signature = "AnnotationParameterClass",
+          definition = function(object) {
+            cat("------------------------------\n")
+            message(crayon::blue("Annotation parameter set:", object@name))
+            cat("------------------------------\n")
+            message(crayon::blue("General parameters:"))
+            cat("MS1 file name", object@para_general$ms1_file, "\n")
+            cat("MS2 type:", object@para_general$ms2_type, "\n")
+            cat("Directory path:", object@para_general$path, "\n")
+            cat("Polarity:", object@para_general$polarity, "\n")
+            cat("Whether use RT match:", object@para_general$is_rt_score, "\n")
+            cat("Whether use MS2 match:", object@para_general$is_ms2_score, "\n")
+            cat("------------------------------\n")
+            message(crayon::blue("Library parameters:"))
+            cat("Library:", object@para_load_db$lib, "\n")
+            cat("Column:", object@para_load_db$column, "\n")
+            cat("Collision energy:", object@para_load_db$ce, "\n")
+            cat("Adduct lists:", paste(object@para_load_db$adduct_list, collapse = ';'), "\n")
+            cat("------------------------------\n")
+            message(crayon::blue("MS1 match parameters:"))
+            cat("MS1 tolerance (ppm):", object@para_ms1_match$mz_tol, "\n")
+            cat("MS1 tolerance ppm threshold", object@para_ms1_match$mz_ppm_thr, "\n")
+            cat("Penalty free RT tolerance (second):", object@para_ms1_match$pf_rt_range, "\n")
+            cat("RT tolerance (second)", object@para_ms1_match$tolerance_rt_range, "\n")
+            cat("------------------------------\n")
+            message(crayon::blue("MS2 match parameters:"))
+            cat("Spectral purification - Whether include precursor ion:", object@para_ms2_match$is_include_precursor, "\n")
+            cat("Spectral purification - minimum fragment intensity:", object@para_ms2_match$int_ms2_min_abs, "\n")
+            cat("Spectral purification - minimum fragment relative intensity:", object@para_ms2_match$int_ms2_min_relative, "\n")
+            cat("Spectral assignment - precursor m/z error tolerance (ppm):", object@para_ms2_match$mz_tol_combine_ms1_ms2, "\n")
+            cat("Spectral assignment - precursor RT error tolerance (s):", object@para_ms2_match$rt_tol_combine_ms1_ms2, "\n")
+            cat("MS2 match - fragment m/z error tolerance (ppm):", object@para_ms2_match$mz_tol_ms2, "\n")
+            cat("MS2 match - MS2 score cutoff:", object@para_ms2_match$dp_cutoff, "\n")
+            cat("MS2 match - minimum matched fragments cutoff:", object@para_ms2_match$matched_frag_cutoff, "\n")
+            cat("MS2 match - MS2 score direction:", object@para_ms2_match$direction, "\n")
+            cat("MS2 match - MS2 score method:", object@para_ms2_match$scoring_approach, "\n")
+            cat("MS2 match - whether export MS2 match mirror plot:", object@para_ms2_match$is_plot_ms2, "\n")
+          }
+)
+
+
+
+  # initialize_annotation_parameter_class --------------------------------------
+#' @title initialize_annotation_parameter_class
+#' @description generate a AnnotationParameterClass for processing raw mass spec data
+#' @author Zhiwei Zhou
+#' @param column 'hilic', 'c18'
+#' @return
+#'  a object of RawMsParameterClass, with slots:
+#'  \describe{
+#'  \item{name}-{parameter set name}
+#'  \item{para_peak_detection}-{parameter of peak detection}
+#'  }
+#' @importFrom magrittr %>%
+#' @importFrom crayon blue red yellow green bgRed
+#' @importFrom stringr str_detect str_extract
+#' @export
+#' @examples
+#' \dontrun{
+#' object <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData/',
+#'                                                 lib = 'dodd',
+#'                                                 ce = '20',
+#'                                                 column = 'hilic',
+#'                                                 polarity = 'positive',
+#'                                                 is_rt_score = TRUE,
+#'                                                 is_ms2_score = TRUE)
+#' }
+
+
+# object <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData/',
+#                                                 lib = 'dodd',
+#                                                 ce = '20',
+#                                                 column = 'hilic',
+#                                                 polarity = 'positive',
+#                                                 is_rt_score = TRUE,
+#                                                 is_ms2_score = TRUE)
+
+setGeneric(name = 'initialize_annotation_parameter_class',
+           def = function(
+    ms1_file = 'data.csv',
+    ms2_type = c('mzML', "mzXML", "mgf", "msp"),
+    path = ".",
+    lib = c('dodd', 'msdial'),
+    ce = c("20", "10", "40"),
+    column = c("hilic", "c18"),
+    polarity = c('positive', 'negative'),
+    is_rt_score = TRUE,
+    is_ms2_score = TRUE
+           ){
+             ms2_type <- match.arg(ms2_type)
+             lib <- match.arg(lib)
+             ce <- match.arg(ce)
+             column <- match.arg(column)
+             polarity <- match.arg(polarity)
+
+             message(crayon::blue('Initialize raw ms parameter class...\n'))
+
+             # general parameter
+             para_general <- list(
+               'ms1_file' = ms1_file,
+               'ms2_type' = ms2_type,
+               'path' = path,
+               'polarity' = polarity,
+               'is_rt_score' = is_rt_score,
+               'is_ms2_score' = is_ms2_score
+             )
+
+             #
+             para_load_db <- list(
+               'lib' = lib,
+               'column' = column,
+               'ce' = ce,
+               'adduct_list' = ifelse(polarity == 'positive', '[M+H]+', '[M-H]-')
+             )
+
+             # ms1 match parameter
+             para_ms1_match <- list(
+               'mz_tol' = 15,
+               'mz_ppm_thr' = 150,
+               'pf_rt_range' = 10,
+               'tolerance_rt_range' = 20
+             )
+
+             # ms2 match parameter
+             para_ms2_match <- list(
+               'is_include_precursor' = TRUE,
+               'int_ms2_min_abs' = 50,
+               'int_ms2_min_relative' = 0.01,
+               'mz_tol_combine_ms1_ms2' = 20, # ppm
+               'rt_tol_combine_ms1_ms2' = 20, # s
+               'mz_tol_ms2' = 35,
+               'dp_cutoff' = 0.8,
+               'matched_frag_cutoff' = 1,
+               'direction' = 'reverse',
+               'scoring_approach' = 'dp',
+               'is_plot_ms2' = TRUE
+             )
+
+             # modify some default parameters
+
+
+             para_list <- new(Class = 'AnnotationParameterClass',
+                              name = paste(lib, column, polarity, sep = '_'),
+                              para_general = para_general,
+                              para_load_db = para_load_db,
+                              para_ms1_match = para_ms1_match,
+                              para_ms2_match = para_ms2_match)
+
+             return(para_list)
+           }
+)
 
 ################################################################################
 # load_spec_db -----------------------------------------------------------------
@@ -2701,6 +2833,7 @@ setGeneric(name = 'match_ms2',
                ms2_result <- pbapply::pblapply(seq_along(ms1_result), function(i){
                  # modify the experimental ms2
                  #    if there have the exp ms2 & the candidate have the lib ms2, then run match
+                 # cat(i, ' ')
                  if (length(exp_spec[[i]]) > 0) {
                    if (nrow(ms1_result[[i]]@annotation_result) > 0) {
                      # modify the msms format for SpectraTools
@@ -2739,8 +2872,10 @@ setGeneric(name = 'match_ms2',
 
                      # result@info[is.na(result@info)] <- 0
                      idx_zero <- which(result@info$n_frag_cpd2 < 1)
-                     result@info$scoreReverse[idx_zero] <- -1
-                     result@info$scoreForward[idx_zero] <- -1
+                     if (length(idx_zero) > 0) {
+                       result@info$scoreReverse[idx_zero] <- -1
+                       result@info$scoreForward[idx_zero] <- -1
+                     }
 
                      return(result)
                    } else {
@@ -3112,6 +3247,133 @@ convert_spectra_data <- function(ms2_data) {
 #                          obj_ms2_cpd2 = obj_zhulab_10v_HMDB0000448,
 #                          mz_tol_ms2 = 35, scoring_approach = 'dp')
 # plot_id_ms2(obj_ms2 = score_dp)
+#
+#
+# run_spec_match <- function(
+#     obj_ms2_cpd1,
+#     obj_ms2_cpd2,
+#     mz_tol_ms2 = 35,
+#     scoring_approach = c('dp', 'bonanza', 'hybrid', 'gnps'),
+#     ...
+# ) {
+#   # browser()
+#   match.arg(scoring_approach)
+#
+#   switch (scoring_approach,
+#           'dp' = {
+#             intensityNormedMethod <- 'maximum'
+#             methodScore <- 'dp'
+#           },
+#           'bonanza' = {
+#             intensityNormedMethod <- 'bonanza'
+#             methodScore <- 'bonanza'
+#           },
+#           'hybrid' = {
+#             intensityNormedMethod <- 'maximum'
+#             methodScore <- 'hybrid'
+#           },
+#           'gnps' = {
+#             intensityNormedMethod <- 'gnps'
+#             methodScore <- 'gnps'
+#           }
+#   )
+#
+#   matchParam <- SpectraTools::MatchParam(ppm = mz_tol_ms2,
+#                                          cutoff = 0,
+#                                          weightIntensity = 1,
+#                                          weightMZ = 0,
+#                                          normIntensity = TRUE,
+#                                          tuneLibSpectra = TRUE,
+#                                          intensityExpNormed = TRUE,
+#                                          intensityLibNormed = TRUE,
+#                                          includePrecursor = TRUE,
+#                                          ppmPrecursorFilter = 30,
+#                                          thrIntensityAbs = 0,
+#                                          thrIntensityRel = 0,
+#                                          intensityNormedMethod = intensityNormedMethod,
+#                                          methodMatch = 'direct',
+#                                          methodScore = methodScore) %>%
+#     new(Class = 'MatchParam')
+#
+#
+#   result <- try(SpectraTools::MatchSpectra(dataExp = obj_ms2_cpd1,
+#                                            dataRef = obj_ms2_cpd2,
+#                                            matchParam),
+#                 silent = TRUE)
+#
+#
+#
+#
+#   # # if the spectra has only one fragment, and it larger than precursor, it was removed
+#   # if (length(result) == 0) {
+#   #   n_frag_cpd1 <- nrow(obj_ms2_cpd1@spectra[[1]])
+#   #   n_frag_cpd2 <- nrow(obj_ms2_cpd2@spectra[[1]])
+#   #   n_frag_match <- 0
+#   #   n_nl_match <- 0
+#   #
+#   #   if (scoring_approach == 'dp') {
+#   #
+#   #   }
+#   #   result@info <- obj_ms2_cpd2@info %>%
+#   #     dplyr::mutate(scoreReverse = 0,
+#   #                   scoreForward = 0) %>%
+#   #     dplyr::mutate(n_frag_cpd1 = n_frag_cpd1,
+#   #                   n_frag_cpd2 = n_frag_cpd2,
+#   #                   n_frag_match = n_frag_match,
+#   #                   n_frag_nl = n_nl_match) %>%
+#   #     dplyr::mutate(n_frag_total = n_frag_match + n_frag_nl)
+#   # }
+#
+#   # add matched_frag and matched_nl into the result table
+#   stat_matched_frag <- lapply(seq_along(result@matchedFragments), function(i){
+#     temp_matchedFragments <- result@matchedFragments[[i]]
+#
+#     if (length(temp_matchedFragments) > 0) {
+#       n_frag_cpd1 <- temp_matchedFragments %>%
+#         dplyr::filter(intensity > 0) %>%
+#         dplyr::count() %>%
+#         dplyr::pull()
+#
+#       n_frag_cpd2 <- temp_matchedFragments %>%
+#         dplyr::filter(intensityExp > 0) %>%
+#         dplyr::count() %>%
+#         dplyr::pull()
+#
+#       n_frag_match <- temp_matchedFragments %>%
+#         dplyr::filter(intensity > 0 & intensityExp > 0) %>%
+#         dplyr::count() %>%
+#         dplyr::pull()
+#
+#     } else {
+#       n_frag_cpd1 <- nrow(obj_ms2_cpd1@spectra[[1]])
+#       n_frag_cpd2 <- nrow(obj_ms2_cpd2@spectra[[i]])
+#       n_frag_match <- 0
+#     }
+#
+#     if (scoring_approach == 'dp') {
+#       n_nl_match <- 0
+#     } else {
+#       n_nl_match <- result@nlFragments[[1]] %>%
+#         dplyr::filter(intensity > 0 & intensityExp > 0) %>%
+#         dplyr::count() %>%
+#         dplyr::pull()
+#     }
+#
+#     temp_result <- tibble::tibble(n_frag_cpd1 = n_frag_cpd1,
+#                                   n_frag_cpd2 = n_frag_cpd2,
+#                                   n_frag_match = n_frag_match,
+#                                   n_frag_nl = n_nl_match) %>%
+#       dplyr::mutate(n_frag_total = n_frag_match + n_frag_nl)
+#
+#   })
+#
+#   stat_matched_frag <- stat_matched_frag %>% dplyr::bind_rows()
+#
+#   result@info <- result@info %>%
+#     dplyr::bind_cols(stat_matched_frag)
+#
+#   return(result)
+# }
 
 
 run_spec_match <- function(
@@ -3151,8 +3413,8 @@ run_spec_match <- function(
                                          tuneLibSpectra = TRUE,
                                          intensityExpNormed = TRUE,
                                          intensityLibNormed = TRUE,
-                                         includePrecursor = TRUE,
-                                         ppmPrecursorFilter = 30,
+                                         includePrecursor = FALSE,
+                                         ppmPrecursorFilter = 20,
                                          thrIntensityAbs = 0,
                                          thrIntensityRel = 0,
                                          intensityNormedMethod = intensityNormedMethod,
@@ -3166,32 +3428,23 @@ run_spec_match <- function(
                                            matchParam),
                 silent = TRUE)
 
+  if (length(result) == 0) {
+    temp_result <- data.frame(name = obj_ms2_cpd2@info$name,
+                              mz = obj_ms2_cpd2@info$mz,
+                              score = 0,
+                              n_frag_cpd1 = 0,
+                              n_frag_cpd2 = 0,
+                              n_frag_match = 0,
+                              n_frag_nl = 0,
+                              n_frag_total = 0)
+
+    return(temp_result)
+  }
 
 
-
-  # # if the spectra has only one fragment, and it larger than precursor, it was removed
-  # if (length(result) == 0) {
-  #   n_frag_cpd1 <- nrow(obj_ms2_cpd1@spectra[[1]])
-  #   n_frag_cpd2 <- nrow(obj_ms2_cpd2@spectra[[1]])
-  #   n_frag_match <- 0
-  #   n_nl_match <- 0
-  #
-  #   if (scoring_approach == 'dp') {
-  #
-  #   }
-  #   result@info <- obj_ms2_cpd2@info %>%
-  #     dplyr::mutate(scoreReverse = 0,
-  #                   scoreForward = 0) %>%
-  #     dplyr::mutate(n_frag_cpd1 = n_frag_cpd1,
-  #                   n_frag_cpd2 = n_frag_cpd2,
-  #                   n_frag_match = n_frag_match,
-  #                   n_frag_nl = n_nl_match) %>%
-  #     dplyr::mutate(n_frag_total = n_frag_match + n_frag_nl)
-  # }
-
-  # add matched_frag and matched_nl into the result table
   stat_matched_frag <- lapply(seq_along(result@matchedFragments), function(i){
     temp_matchedFragments <- result@matchedFragments[[i]]
+    temp_nlFragments <- result@nlFragments[[i]]
 
     if (length(temp_matchedFragments) > 0) {
       n_frag_cpd1 <- temp_matchedFragments %>%
@@ -3218,10 +3471,14 @@ run_spec_match <- function(
     if (scoring_approach == 'dp') {
       n_nl_match <- 0
     } else {
-      n_nl_match <- result@nlFragments[[1]] %>%
-        dplyr::filter(intensity > 0 & intensityExp > 0) %>%
-        dplyr::count() %>%
-        dplyr::pull()
+      if (length(temp_nlFragments) > 0) {
+        n_nl_match <- temp_nlFragments %>%
+          dplyr::filter(intensity > 0 & intensityExp > 0) %>%
+          dplyr::count() %>%
+          dplyr::pull()
+      } else {
+        n_nl_match <- 0
+      }
     }
 
     temp_result <- tibble::tibble(n_frag_cpd1 = n_frag_cpd1,
@@ -3239,7 +3496,6 @@ run_spec_match <- function(
 
   return(result)
 }
-
 
 
 
