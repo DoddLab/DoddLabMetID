@@ -236,7 +236,7 @@ It usually looks like below:
 
 
 ### Using Different Dodd libraries
-- This function will integrate multiple annotation approach, and generate the final annotation table
+- This function will integrate multiple annotation approach, and generate the final annotation table, like `annotation_table_merge_hilic_positive.xlsx`
 - Most column is consistent to the Dodd library only
 - Different columns are provided below:
     - with_ms2: whether have the MS2 spectrum. 1 (yes) or 0 (no)
@@ -247,3 +247,4 @@ It usually looks like below:
         - level 1: mz + RT + MS2
         - level 2.1: mz + RT
         - level 2.2: mz + MS-DIAL MS2
+
