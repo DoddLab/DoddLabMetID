@@ -5,17 +5,16 @@
 #' @title annotate_metabolite
 #' @description Annotate peak using MS/MS spectra in in-house database.
 #' @author Zhiwei Zhou
+#' @param object = NULL,
+#' @param parameter_set_annotation parameter set
 #' @param ms1_file The name of ms1 peak table. Column 1 is "name", Column 2 is "mz" and column is "rt".
 #' @param ms2_file Default: NULL
 # #' @param sample_info_file Default: sample.info.csv
 #' @param ms2_type "mgf", "mzXML", "msp", "cef"
-#' @param metdna_version 'version1', 'version2'. Default: "version1"
 #' @param path Default: '.'
-#' @param instrument The instrument you used to acquire data. "AgilentQTOF", "SciexTripleTOF", "BrukerQTOF", "ThermoOrbitrap", "ThermoExploris". Default: "SciexTripleTOF"
-#' @param lib Default: 'zhuMetLib'
+#' @param lib 'dodd', 'msdial', 'peptide', 'gnps_bile_acid', 'gnps_acyl_amides', 'gnps_acyl_esters', 'all_public'. Default: 'dodd'
 #' @param column "hilic", "rp"
-#' @param ce "10", "20", "30", "35,15", "40", "50". Default: "30"
-#' @param method_lc 'Amide12min', 'Amide23min'. Default: 'Amide12min'
+#' @param ce "10", "20", "40". Default: "30"
 #' @param excluded_adduct adduct list for exclusion. Default: NULL
 #' @param is_rt_calibration Default: FALSE
 #' @param mz_tol ms1 match. Default: 25 ppm
@@ -71,6 +70,7 @@
 #'                                                 polarity = 'positive',
 #'                                                 is_rt_score = TRUE,
 #'                                                 is_ms2_score = TRUE)
+#' annotate_metabolite(parameter_set_annotation = parameter_set_annotation)
 #' }
 #
 # parameter_set_annotation <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData/',
@@ -81,7 +81,7 @@
 #                                                                   is_rt_score = TRUE,
 #                                                                   is_ms2_score = TRUE)
 # annotate_metabolite(parameter_set_annotation = parameter_set_annotation)
-
+#
 #
 # annotate_metabolite(ms1_file = 'Peak_Table.csv',
 #                     ms2_type = 'mzML',
@@ -98,7 +98,7 @@
 #                     scoring_approach = 'gnps',
 #                     is_rt_score = TRUE,
 #                     is_ms2_score = TRUE)
-
+#
 # load('~/Project/00_IBD_project/Data/20230207_data_cleaning_IBD/HILIC_pos/02_data_cleaning/05_object_hilic_pos_outlier_removal.RData')
 # object <- object_hilic_pos;rm(object_hilic_pos);gc()
 # path <- '~/Project/00_IBD_project/Data/20230227_develop_metabolite_ID_workflow/'
@@ -147,7 +147,7 @@ setGeneric(name = "annotate_metabolite",
                           # parameters of loadDB
                           lib_db,
                           polarity = c("positive", "negative"),
-                          lib = c('dodd', 'msdial'),
+                          lib = c('dodd', 'msdial', 'peptide', 'gnps_bile_acid', 'gnps_acyl_amides', 'gnps_acyl_esters', 'all_public'),
                           column = c("hilic", "c18"),
                           ce = c("20", "10", "40"),
                           adduct_list = c('[M+H]+'),
@@ -173,7 +173,8 @@ setGeneric(name = "annotate_metabolite",
                           scoring_approach = c('dp', 'bonanza', 'hybrid', 'gnps'),
 
                           # plots
-                          is_plot_ms2 = TRUE
+                          is_plot_ms2 = TRUE,
+                          ...
            ){
 
              # load parameter set if it existed
@@ -183,8 +184,10 @@ setGeneric(name = "annotate_metabolite",
                }
 
                # assign parameter from parameter set
+               # object <- parameter_set_annotation@para_general$object
                ms1_file <- parameter_set_annotation@para_general$ms1_file
                ms2_type <- parameter_set_annotation@para_general$ms2_type
+               ms2_file <- parameter_set_annotation@para_general$ms2_file
                path <- parameter_set_annotation@para_general$path
                polarity <- parameter_set_annotation@para_general$polarity
                is_rt_score <- parameter_set_annotation@para_general$is_rt_score
@@ -219,8 +222,47 @@ setGeneric(name = "annotate_metabolite",
              ce <- match.arg(ce)
              direction <- match.arg(direction)
              scoring_approach <- match.arg(scoring_approach)
+             # browser()
+
+             # save the parameters
+             list_para <- list(
+               'package_verison' = packageVersion('DoddLabMetID'),
+               # assign parameter from parameter set
+               'ms1_file' = ms1_file,
+               'ms2_type' = ms2_type,
+               'ms2_file' = paste(ms2_file, collapse = ';'),
+               'path' = path,
+               'polarity' = polarity,
+               'is_rt_score' = is_rt_score,
+               'is_ms2_score' = is_ms2_score,
+               'lib' = lib,
+               'column' = column,
+               'ce' = ce,
+               'adduct_list' = paste(adduct_list, collapse = ';'),
+               'mz_tol' = paste(mz_tol, collapse = ';'),
+               'mz_ppm_thr' = paste(mz_ppm_thr, collapse = ';'),
+               'pf_rt_range' = paste(pf_rt_range, collapse = ';'),
+               'tolerance_rt_range' = paste(tolerance_rt_range, collapse = ';'),
+               'is_include_precursor' = is_include_precursor,
+               'int_ms2_min_abs' = int_ms2_min_abs,
+               'int_ms2_min_relative' = int_ms2_min_relative,
+               'mz_tol_combine_ms1_ms2' = mz_tol_combine_ms1_ms2,
+               'rt_tol_combine_ms1_ms2' = rt_tol_combine_ms1_ms2,
+               'mz_tol_ms2' = mz_tol_ms2,
+               'dp_cutoff' = dp_cutoff,
+               'matched_frag_cutoff' = matched_frag_cutoff,
+               'direction' = direction,
+               'scoring_approach' = scoring_approach,
+               'is_plot_ms2' = is_plot_ms2
+             ) %>%
+               tibble::as_tibble() %>%
+               dplyr::mutate_all(as.character) %>%
+               tidyr::pivot_longer(cols = dplyr::everything(), names_to = 'para')
 
              path_output <- file.path(path, "01_metabolite_annotation")
+             dir.create(file.path(path_output), showWarnings = FALSE, recursive = TRUE)
+             readr::write_tsv(list_para, path = file.path(path_output, 'para_list.txt'), append = FALSE)
+
              dir.create(file.path(path_output, "00_intermediate_data"), showWarnings = FALSE, recursive = TRUE)
 
              # check ms1_file and ms2_file
@@ -300,6 +342,7 @@ setGeneric(name = "annotate_metabolite",
                   compress = 'gzip',
                   version = 2)
 
+             # browser()
              # mz, rt match for ms1 data
              message(crayon::blue('MS1 & RT match...\n'))
              ms1_result <- match_ms1_rt(ms1_data = ms1_data,
@@ -469,6 +512,7 @@ setGeneric(name = "annotate_metabolite",
 
                    # adjust has_ms2 slot in the class
                    ms1_result <- add_has_ms2_to_SpecAnnotationClass(obj_class = ms1_result, ms2 = ms2)
+                   ms1_result <- add_ms2_purifty_to_SpecAnnotationClass(obj_class = ms1_result, ms2_data_combined = ms2_data_combined)
 
                    # export ms2 as MSP file
                    purrr::walk(ms2, function(x){
@@ -532,8 +576,8 @@ setGeneric(name = "annotate_metabolite",
              table_annotation <- convertSpecAnnotationClass2Table(ms1_data = ms1_data,
                                                                   result_annotation = result_annotation)
 
-             readr::write_csv(table_annotation,
-                              file.path(path_output, "ms2_match_annotation_result.csv"))
+             # readr::write_csv(table_annotation,
+             #                  file.path(path_output, "ms2_match_annotation_result.csv"))
 
              save(table_annotation,
                   file = file.path(path_output, '00_intermediate_data', 'table_annotation'),
@@ -784,8 +828,10 @@ setMethod(f = "show",
             message(crayon::blue("Annotation parameter set:", object@name))
             cat("------------------------------\n")
             message(crayon::blue("General parameters:"))
-            cat("MS1 file name", object@para_general$ms1_file, "\n")
+            # cat('Object:', ifelse(length(object) > 0, deparse(substitute(object@para_general$object)), 'NULL'))
+            cat("MS1 file name:", object@para_general$ms1_file, "\n")
             cat("MS2 type:", object@para_general$ms2_type, "\n")
+            cat("MS2 files:", paste(object@para_general$ms2_file, collapse = ';'), "\n")
             cat("Directory path:", object@para_general$path, "\n")
             cat("Polarity:", object@para_general$polarity, "\n")
             cat("Whether use RT match:", object@para_general$is_rt_score, "\n")
@@ -857,10 +903,11 @@ setMethod(f = "show",
 
 setGeneric(name = 'initialize_annotation_parameter_class',
            def = function(
+    object = NULL,
     ms1_file = 'data.csv',
     ms2_type = c('mzML', "mzXML", "mgf", "msp"),
     path = ".",
-    lib = c('dodd', 'msdial'),
+    lib = c('dodd', 'msdial', 'peptide', 'gnps_bile_acid', 'gnps_acyl_amides', 'gnps_acyl_esters', 'all_public'),
     ce = c("20", "10", "40"),
     column = c("hilic", "c18"),
     polarity = c('positive', 'negative'),
@@ -875,17 +922,27 @@ setGeneric(name = 'initialize_annotation_parameter_class',
 
              message(crayon::blue('Initialize raw ms parameter class...\n'))
 
+             temp <- list.files(path)
+             if (any(temp == 'ms2')) {
+               ms2_file <- list.files(file.path(path, 'ms2'))
+               ms2_file <- file.path('ms2', ms2_file)
+             } else {
+               ms2_file <- NULL
+             }
+
+
              # general parameter
              para_general <- list(
+               'object' = object,
                'ms1_file' = ms1_file,
                'ms2_type' = ms2_type,
+               'ms2_file' = ms2_file,
                'path' = path,
                'polarity' = polarity,
                'is_rt_score' = is_rt_score,
                'is_ms2_score' = is_ms2_score
              )
 
-             #
              para_load_db <- list(
                'lib' = lib,
                'column' = column,
@@ -1217,6 +1274,8 @@ setGeneric(name = "SXTMTmatch",
                           rt.tol = 10,
                           ccs.tol = NULL,
                           rt.error.type = c("abs", "relative")){
+
+             # browser()
              rt.error.type <- match.arg(rt.error.type)
 
              if (nrow(data1) == 0 | nrow(data2) == 0) {
@@ -1359,6 +1418,7 @@ setGeneric(name = 'match_ms1_rt',
                           is_rt_score = FALSE,
                           is_check_cation = FALSE
            ){
+             # browser()
              cat("m/z & RT & CCS match...\n\n")
              ms1_info <- ms1_data$info
              result_annotation <- convertMs1Data2SpecAnnotationClass(ms1_info = ms1_info)
@@ -1607,6 +1667,7 @@ setMethod(f = "show",
             cat("m/z:", object@peak_info$mz, "\n")
             cat("RT (s):", object@peak_info$rt, "\n")
             cat("With ms2:", ifelse(object@peak_info$has_ms2 > 0, 'Yes', 'No'), "\n")
+            cat("MS2 purity:", object@peak_info$ms2_purity, "\n")
             # cat("CCS (A2):",object@peak_info$ccs, "\n")
             # cat("Median peak area:",object@peak_info$intmed, '\n\n')
 
@@ -1678,6 +1739,7 @@ setGeneric(name = 'convertMs1Data2SpecAnnotationClass',
              result <- pbapply::pblapply(seq_along(ms1_info$name), function(i){
                peak_info <- ms1_info[i,] %>% as.list()
                peak_info$has_ms2 <- -1
+               peak_info$ms2_purity <- -1
                new(Class = "SpecAnnotationClass",
                    peak_info = peak_info,
                    annotation_result = temp_annotation_result)
@@ -1700,17 +1762,17 @@ setGeneric(name = 'convertMs1Data2SpecAnnotationClass',
 #' @param ms2_type 'mgf', 'cef', 'msp', 'mzXML', 'mzML'
 #' @export
 
-# path <- 'H:/00_projects/03_MetDNA2/00_data/20200922_metdna2_development/pos_201007_metdna2/'
-# temp_files <- dir(path) %>% stringr::str_detect('\\.mgf') %>% dir(path)[.]
-# ms2_data <- readMs2(ms2_file = file.path(path, temp_files),
-#                     ms2_type = 'mgf')
 #
-# path <- '/home/zhouzw/Data_processing/20210315_tims_data_processing_metdna/'
+# path <- '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData_DoddLabMetabolomics/ms2/'
+# temp_files <- dir(path) %>% stringr::str_detect('\\.mzML') %>% dir(path)[.]
+# ms2_data <- read_ms2(ms2_file = file.path(path, temp_files),
+#                      ms2_type = 'mzML')
+#
+# path <- '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData_mgf/'
 # temp_files <- dir(path) %>% stringr::str_detect('\\.mgf') %>% dir(path)[.]
-# test <- readMs2(ms2_file = file.path(path, temp_files),
-#                 ms2_type = 'mgf',
-#                 instrument = 'IMMS')
-
+# ms2_data <- read_ms2(ms2_file = file.path(path, temp_files),
+#                      ms2_type = 'mgf')
+#
 setGeneric(name = 'read_ms2',
            def = function(
     ms2_file,
@@ -1745,30 +1807,40 @@ setGeneric(name = 'read_ms2',
 
                     'mzXML' = {
                       pbapply::pboptions(type='timer', char='+')
+                      # ms2_data <- pbapply::pblapply(ms2_file, function(x){
+                      #   readMzXML(x, ...)
+                      # })
                       ms2_data <- pbapply::pblapply(ms2_file, function(x){
-                        readMzXML(x, ...)
+                        readMzML2(x, ...)
                       })
 
                     },
 
                     'mzML' = {
                       pbapply::pboptions(type='timer', char='+')
+                      # ms2_data <- pbapply::pblapply(ms2_file, function(x){
+                      #   readMzML(x, ...)
+                      # })
+
                       ms2_data <- pbapply::pblapply(ms2_file, function(x){
-                        readMzML(x, ...)
+                        readMzML2(x, ...)
                       })
 
                     }
              )
 
-             file_name <- basename(ms2_file)
-             ms2_data <- lapply(seq_along(ms2_data), function(i){
-               temp_ms2 <- ms2_data[[i]]
-               result <- lapply(temp_ms2, function(x){
-                 x$info <- c(x$info, 'file_name_idx' = i)
-                 return(x)
+             if (!(ms2_type %in% c('mzML', 'mzXML'))) {
+               file_name <- basename(ms2_file)
+               ms2_data <- lapply(seq_along(ms2_data), function(i){
+                 temp_ms2 <- ms2_data[[i]]
+                 result <- lapply(temp_ms2, function(x){
+                   x$info <- c(x$info, 'file_name_idx' = i)
+                   return(x)
+                 })
+                 return(result)
                })
-               return(result)
-             })
+             }
+
 
              ms2_data <- do.call(c, ms2_data)
            }
@@ -1787,9 +1859,9 @@ setGeneric(name = 'read_ms2',
 # temp_files <- dir(path) %>% stringr::str_detect('\\.mgf') %>% dir(path)[.]
 # test <- readMGF(file.path(path, temp_files[1]))
 
-# path <- '/home/zhouzw/Data_processing/20210315_tims_data_processing_metdna/'
+# path <- '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData_mgf/'
 # temp_files <- dir(path) %>% stringr::str_detect('\\.mgf') %>% dir(path)[.]
-# test <- readMGF(file.path(path, temp_files[1]))
+# test <- readMGF(file = file.path(path, temp_files[1]))
 
 setGeneric('readMGF',
            def = function(file,
@@ -2228,6 +2300,8 @@ setGeneric('readMzXML',
 #' @export
 # test <- readMzXML(file)
 
+# file <- '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData_DoddLabMetabolomics/ms2/B011_PoolQC-DDA-r001.mzML'
+# test <- readMzXML(file)
 
 setGeneric('readMzML',
            def = function(file){
@@ -2266,6 +2340,183 @@ setGeneric('readMzML',
 
 
 
+
+#   readMzML2 --------------------------------------------------------------------
+#' @title readMzML2
+#' @author Zhiwei Zhou
+#' @param file mzml or mzxml file. ms2 files
+#' @param isolation_window 'narrow', 'medium', 'wide'
+#' @param is_purification whether do the ms2 purification
+#' @importFrom magrittr %>%
+#' @importFrom crayon blue red yellow green bgRed
+#' @importFrom stringr str_detect str_extract
+#' @export
+#' @examples
+#' \dontrun{
+#' file <- '~/Project/00_IBD_project/Data/20230428_Zhiwei_StanfordPool_MS2/mzxml_haoqing_data/Haoqing_MS2_data/MS2_lib_mzXML/Stanford_HILIC_pos/SU-A01_1.mzXML'
+#' file <- '~/Project/00_IBD_project/Data/20230428_Zhiwei_StanfordPool_MS2/mzml_hilic_pos/StanfordPool1-2.mzML'
+#'
+#' test <- retrieve_raw_ms2(file = 'SU-A01_1.mzXML',
+#'                          isolation_window = 'narrow',
+#'                          dir_path = '~/Project/00_IBD_project/Data/20230428_Zhiwei_StanfordPool_MS2/mzxml_haoqing_data/Haoqing_MS2_data/MS2_lib_mzXML/Stanford_HILIC_pos')
+#' }
+
+
+# file <- '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData_DoddLabMetabolomics/ms2/B011_PoolQC-DDA-r001.mzML'
+# test3 <- readMzML2(file = file)
+# file <- '~/Project/05_coworker/Aedan/230727_untargeted_data_processing/HILIC_pos/group1/S1.mzML'
+# test3 <- readMzML2(file = file)
+
+readMzML2 <- function(file,
+                      isolation_window = c('narrow', 'medium', 'wide'),
+                      # dir_path = '.',
+                      is_purification = FALSE) {
+  isolation_window <- match.arg(isolation_window)
+  switch (isolation_window,
+          'narrow' = {
+            isolation_range <- 0.65
+          },
+          'medium' = {
+            isolation_range <- 4
+          },
+          'wide' = {
+            isolation_range <- 9
+          }
+  )
+
+  mzml.data <- mzR::openMSfile(file)
+  mzml.info <- mzR::header(mzml.data)
+  mzml.peak <- mzR::peaks(mzml.data)
+
+  mzml_info_ms1 <- mzml.info %>%
+    dplyr::filter(msLevel == 1)
+  mzml_info_ms2 <- mzml.info %>%
+    dplyr::filter(msLevel == 2)
+
+
+  # In targeted ms/ms, no precursorScanNum provided. Assign the closed ms1 scan as precursor scan
+  precursor_scan_num <- mzml_info_ms2$precursorScanNum
+  if (all(is.na(precursor_scan_num))) {
+    temp_position <- outer(mzml_info_ms1$seqNum, mzml_info_ms2$seqNum, function(x, y){
+      x - y
+    })
+    # the ms1 scan number must less than ms2 scan. assign 10000 if the ms1 scan larger than ms2 scan
+    precursor_idx <- apply(temp_position, 2, function(x){
+      x[x>0] <- 10000
+      which.min(abs(x))
+    })
+
+    precursor_seq_num <- mzml_info_ms1$seqNum[precursor_idx]
+    precursor_rt <- mzml_info_ms1$retentionTime[precursor_idx]
+  } else {
+    precursor_seq_num <- match(precursor_scan_num, mzml_info_ms1$acquisitionNum) %>% mzml_info_ms1$seqNum[.]
+    precursor_rt <- match(precursor_scan_num, mzml_info_ms1$acquisitionNum) %>% mzml_info_ms1$retentionTime[.]
+  }
+
+
+  precursor_info <- mapply(function(seq_num, mz_precursor){
+    temp_spec <- mzml.peak[[seq_num]]
+
+    temp <- which(abs(temp_spec[,'mz'] - mz_precursor) <= 0.0015)
+    if (length(temp) < 1) {
+      precursor_info <- tibble::tibble(precursor_mz = mz_precursor,
+                                       intensity = 0,
+                                       purity = -1,
+                                       ms1_scan = seq_num,
+                                       mz_error = -1)
+
+      return(precursor_info)
+    }
+
+    # select the correct precursor
+    idx <- which.min(abs(temp_spec[,'mz'] - mz_precursor))
+    int_precursor <- temp_spec[,'intensity'][idx]
+    mz_exp <- temp_spec[,'mz'][idx]
+    mz_error <- abs(temp_spec[,'mz'] - mz_precursor)[idx]
+
+    # calculate the precursor purity
+    temp_idx <- which((temp_spec[,'mz'] >= (mz_precursor - isolation_range)) &
+                        (temp_spec[,'mz'] <= (mz_precursor + isolation_range)))
+    purity_precursor <- int_precursor/sum(temp_spec[,'intensity'][temp_idx])
+
+    # generate precursor info
+    precursor_info <- tibble::tibble(precursor_mz = mz_precursor,
+                                     intensity = int_precursor,
+                                     purity = purity_precursor,
+                                     ms1_scan = seq_num,
+                                     mz_error = mz_error)
+
+    return(precursor_info)
+  },
+  seq_num = precursor_seq_num,
+  mz_precursor = mzml_info_ms2$precursorMZ,
+  SIMPLIFY = FALSE)
+
+  precursor_info <- precursor_info %>% dplyr::bind_rows()
+
+  ms2_info <- mzml_info_ms2 %>%
+    dplyr::bind_cols(precursor_info) %>%
+    dplyr::mutate(precursor_rt = precursor_rt) %>%
+    dplyr::mutate(precursor_mz = precursor_mz,
+                  ms2_rt = retentionTime,
+                  ce = collisionEnergy,
+                  ms2_scan = seqNum,
+                  precuror_int = intensity,
+                  ms2_file = file) %>%
+    dplyr::select(precursor_mz,
+                  precursor_rt,
+                  precuror_int,
+                  ms2_rt,
+                  ce,
+                  purity,
+                  ms1_scan,
+                  ms2_scan,
+                  ms2_file) %>%
+    dplyr::rename(mz = precursor_mz,
+                  rt = precursor_rt)
+
+  ms2_spec <- mzml.peak[ms2_info$ms2_scan]
+
+  if (is_purification) {
+    purified_spec <- mapply(function(x, y){
+      DoddLabMetID::purifyMs2(x,
+                              mz_precursor = y,
+                              is_include_precursor = TRUE,
+                              is_remove_ring_effect = TRUE,
+                              ppm_precursor_filter = 10,
+                              int_ms2_min_abs = 50,
+                              int_ms2_min_relative = 0.01)
+    },
+    x = ms2_spec,
+    y = ms2_info$precursor_mz,
+    SIMPLIFY = FALSE)
+
+    idx_eff <- which(sapply(purified_spec, length) > 0)
+    if (length(idx_eff) > 0) {
+      purified_spec <- purified_spec[idx_eff]
+      ms2_info <- ms2_info[idx_eff,]
+      result <- list('info' = ms2_info,
+                     'spec' = purified_spec)
+      return(result)
+    } else {
+      result <- list(spec_info = NULL,
+                     best_spec = NULL)
+      return(result)
+    }
+  }
+
+  result <- lapply(seq(nrow(ms2_info)), function(i){
+    temp_info <- ms2_info %>% dplyr::slice(i)
+    temp_spec <- ms2_spec[[i]]
+    result <- list('info' = temp_info,
+                   'spec' = temp_spec)
+  })
+
+  return(result)
+}
+
+
+
 ################################################################################
 # integrate_ms2 ----------------------------------------------------------------
 
@@ -2283,18 +2534,35 @@ setGeneric('readMzML',
 #' @param mz_range_ms2 the range of ms2 data.
 #' @export
 
-# path <- 'H:/00_projects/03_MetDNA2/00_data/20200922_metdna2_development/pos_201007_metdna2/'
+# path <- '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData_mgf/'
 # temp_files <- dir(path) %>% stringr::str_detect('\\.mgf') %>% dir(path)[.]
-# ms2_data <- read(ms2_file = file.path(path, temp_files),
-#                     ms2_type = 'mgf')
-# test <- inteMs2(ms2_data = ms2_data,
-#                 ms2_type = 'mgf',
-#                 is_include_precursor = TRUE,
-#                 is_deisotope = FALSE,
-#                 int_ms2_min_abs = 0,
-#                 int_ms2_min_relative = 0.01,
-#                 ppm_precursor_filter = 25,
-#                 mz_range_ms2 = NULL)
+# ms2_data <- read_ms2(ms2_file = file.path(path, temp_files),
+#                      ms2_type = 'mgf')
+# test <- integrate_ms2(ms2_data = ms2_data,
+#                       ms2_file = file.path(path, temp_files),
+#                       ms2_type = 'mgf',
+#                       is_include_precursor = TRUE,
+#                       is_deisotope = FALSE,
+#                       int_ms2_min_abs = 0,
+#                       int_ms2_min_relative = 0.01,
+#                       ppm_precursor_filter = 25,
+#                       mz_range_ms2 = NULL)
+
+
+# path <- '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData_DoddLabMetabolomics/ms2/'
+# temp_files <- dir(path) %>% stringr::str_detect('\\.mzML') %>% dir(path)[.]
+# ms2_data <- read_ms2(ms2_file = file.path(path, temp_files),
+#                      ms2_type = 'mzML')
+# ms2_data <- integrate_ms2(ms2_data = ms2_data,
+#                       ms2_file = file.path(path, temp_files),
+#                       ms2_type = 'mzML',
+#                       is_include_precursor = TRUE,
+#                       is_deisotope = FALSE,
+#                       int_ms2_min_abs = 0,
+#                       int_ms2_min_relative = 0.01,
+#                       ppm_precursor_filter = 25,
+#                       mz_range_ms2 = NULL)
+
 
 setGeneric(name = 'integrate_ms2',
            def = function(
@@ -2310,12 +2578,13 @@ setGeneric(name = 'integrate_ms2',
     ...
            ){
              match.arg(ms2_type)
+             # browser()
 
              cat('Purify and integrate MS/MS spectra\n')
              tune_MS2_spec <- pbapply::pblapply(seq_along(ms2_data), function(i){
                # cat(i, ' ')
                result <- purifyMs2(spec = ms2_data[[i]]$spec,
-                                   mz_precursor = ms2_data[[i]]$info['mz'],
+                                   mz_precursor = as.numeric(ms2_data[[i]]$info['mz']),
                                    is_include_precursor = is_include_precursor,
                                    is_deisotope = is_deisotope,
                                    int_ms2_min_abs = int_ms2_min_abs,
@@ -2339,6 +2608,10 @@ setGeneric(name = 'integrate_ms2',
                                   rt=as.numeric(info[,2]),
                                   filename = as.numeric(info[,3]),
                                   stringsAsFactors = F)
+
+               file_name_list <- basename(ms2_file)
+               info <- info %>%
+                 dplyr::mutate(filename = file_name_list[info$filename])
              }
 
              if (ms2_type == "msp") {
@@ -2351,19 +2624,27 @@ setGeneric(name = 'integrate_ms2',
              }
 
              if (ms2_type == 'mzXML') {
-               temp <- rownames(info)
-               info <- data.frame(mz=as.numeric(info[,1]),
-                                  rt=as.numeric(info[,2]),
-                                  filename = as.numeric(info[,3]),
-                                  stringsAsFactors = F)
+               # temp <- rownames(info)
+               # info <- data.frame(mz=as.numeric(info[,1]),
+               #                    rt=as.numeric(info[,2]),
+               #                    filename = as.numeric(info[,3]),
+               #                    stringsAsFactors = F)
+
+               info <- info %>%
+                 dplyr::rename(filename = ms2_file) %>%
+                 dplyr::mutate(filename = basename(filename))
              }
 
              if (ms2_type == 'mzML') {
-               temp <- rownames(info)
-               info <- data.frame(mz=as.numeric(info[,1]),
-                                  rt=as.numeric(info[,2]),
-                                  filename = as.numeric(info[,3]),
-                                  stringsAsFactors = F)
+               # temp <- rownames(info)
+               # info <- data.frame(mz=as.numeric(info[,1]),
+               #                    rt=as.numeric(info[,2]),
+               #                    filename = as.numeric(info[,3]),
+               #                    stringsAsFactors = F)
+
+               info <- info %>%
+                 dplyr::rename(filename = ms2_file) %>%
+                 dplyr::mutate(filename = basename(filename))
              }
 
              idx_null <- which(sapply(tune_MS2_spec, is.null))
@@ -2373,9 +2654,6 @@ setGeneric(name = 'integrate_ms2',
                tune_MS2_spec <- tune_MS2_spec[-idx_null]
              }
 
-             file_name_list <- basename(ms2_file)
-             info <- info %>%
-               dplyr::mutate(filename = file_name_list[info$filename])
              result <- list(info=info, spec=tune_MS2_spec)
              return(result)
 
@@ -2617,6 +2895,29 @@ setGeneric(name = 'removeRingEffect',
 #' @param rt_tol_combine_ms1_ms2 RT tol for ms1 and ms2 data matching.
 #' @param ms2_type The type of MS2 file, default is mzXML.
 #' @return Return ms1 and ms2 data.
+#' @export
+
+
+# load('~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData/01_metabolite_annotation_dodd_mz_rt_ms2/00_intermediate_data/ms1_data')
+
+# path <- '~/Project/00_IBD_project/Data/20230327_raw_data_processing_test/DemoData_DoddLabMetabolomics/ms2/'
+# temp_files <- dir(path) %>% stringr::str_detect('\\.mzML') %>% dir(path)[.]
+# ms2_data <- read_ms2(ms2_file = file.path(path, temp_files),
+#                      ms2_type = 'mzML')
+# ms2_data <- integrate_ms2(ms2_data = ms2_data,
+#                       ms2_file = file.path(path, temp_files),
+#                       ms2_type = 'mzML',
+#                       is_include_precursor = TRUE,
+#                       is_deisotope = FALSE,
+#                       int_ms2_min_abs = 0,
+#                       int_ms2_min_relative = 0.01,
+#                       ppm_precursor_filter = 25,
+#                       mz_range_ms2 = NULL)
+# ms2_data_combined <- combine_ms1_ms2(ms1_data = ms1_data,
+#                                      ms2_data = ms2_data,
+#                                      ms2_type = 'mzML',
+#                                      mz_tol_combine_ms1_ms2 = 15,
+#                                      rt_tol_combine_ms1_ms2 = 15)
 
 setGeneric(name = "combine_ms1_ms2",
            function(ms1_data,
@@ -2624,6 +2925,7 @@ setGeneric(name = "combine_ms1_ms2",
                     mz_tol_combine_ms1_ms2 = 15,
                     rt_tol_combine_ms1_ms2 = 15,
                     ms2_type = c("mgf", "mzXML", 'mzML')){
+             # browser()
 
              ms2_info <- ms2_data$info
              ms2_spec <- ms2_data$spec
@@ -2674,6 +2976,7 @@ setGeneric(name = "combine_ms1_ms2",
                ms2_name <- names(remain_idx)
                ms2_info <- ms2_info[remain_idx,]
                ms2_spec <- ms2_spec[remain_idx]
+               rownames(ms2_info) <- ms2_name
                names(ms2_spec) <- ms2_name
 
                ms2_list <- list(info = ms2_info, spec = ms2_spec)
@@ -2733,7 +3036,7 @@ setGeneric(name = "combine_ms1_ms2",
 
 
 
-# split_ms2 ------------------------------------------------------------------
+# split_ms2 --------------------------------------------------------------------
 
 setGeneric(name = 'split_ms2',
            def = function(ms2_data_combined){
@@ -2759,7 +3062,7 @@ setGeneric(name = 'split_ms2',
 
 
 
-# add_has_ms2_to_SpecAnnotationClass
+# add_has_ms2_to_SpecAnnotationClass -------------------------------------------
 #' @title add_has_ms2_to_SpecAnnotationClass
 #' @author Zhiwei Zhou
 #' @param obj_class a pecAnnotationClass object
@@ -2774,6 +3077,36 @@ setGeneric(name = "add_has_ms2_to_SpecAnnotationClass",
                  x@peak_info$has_ms2 <- 1
                } else {
                  x@peak_info$has_ms2 <- -1
+               }
+
+               return(x)
+             })
+
+             names(result) <- names(obj_class)
+             return(result)
+           })
+
+
+# add_ms2_purifty_to_SpecAnnotationClass ---------------------------------------
+#' @title add_ms2_purifty_to_SpecAnnotationClass
+#' @author Zhiwei Zhou
+#' @param obj_class a pecAnnotationClass object
+#' @param ms2
+#' @export
+setGeneric(name = "add_ms2_purifty_to_SpecAnnotationClass",
+           def = function(obj_class, ms2_data_combined){
+
+             # rownames(ms2_data_combined$info) <- names(ms2_data_combined$spec)
+
+             ms2_info <- ms2_data_combined$info
+             peaks_with_ms2 <- rownames(ms2_info)
+             result <- lapply(obj_class, function(x){
+               temp_feature_name <- x@peak_info$name
+               if (temp_feature_name %in% peaks_with_ms2) {
+                 temp_idx <- which(peaks_with_ms2 == temp_feature_name)
+                 x@peak_info$ms2_purity <- ms2_info$purity[temp_idx]
+               } else {
+                 x@peak_info$ms2_purity <- -1
                }
 
                return(x)
@@ -3594,6 +3927,7 @@ setGeneric(name = 'convertSpecAnnotationClass2Table',
 #' @importFrom magrittr %>%
 #' @importFrom crayon blue red yellow green bgRed
 #' @importFrom stringr str_detect str_extract
+#' @export
 
 # load('~/Project/00_IBD_project/Data/20230227_develop_metabolite_ID_workflow/01_metabolite_annotation_ms2/00_intermediate_data/result_annotation')
 # load('~/Project/00_IBD_project/Data/20230227_develop_metabolite_ID_workflow/01_metabolite_annotation_ms2/00_intermediate_data/lib_meta')
@@ -3614,13 +3948,15 @@ setGeneric(name = 'generate_summary_table',
                    temp_feature_mz <- x@peak_info$mz
                    temp_feature_rt <- x@peak_info$rt
                    temp_feature_has_ms2 <- x@peak_info$has_ms2
+                   temp_feature_ms2_purity <- x@peak_info$ms2_purity
 
                    result <- x@annotation_result %>%
                      dplyr::mutate(feature_name = temp_feature_name,
                                    mz = temp_feature_mz,
                                    rt = temp_feature_rt,
-                                   with_ms2 = temp_feature_has_ms2) %>%
-                     dplyr::select(feature_name:with_ms2, dplyr::everything()) %>%
+                                   with_ms2 = temp_feature_has_ms2,
+                                   ms2_purity = temp_feature_ms2_purity) %>%
+                     dplyr::select(feature_name:ms2_purity, dplyr::everything()) %>%
                      dplyr::select(-idx)
 
                    return(result)
@@ -3634,8 +3970,9 @@ setGeneric(name = 'generate_summary_table',
                  dplyr::mutate(feature_name = character(),
                                mz = numeric(),
                                rt = numeric(),
-                               with_ms2 = numeric()) %>%
-                 dplyr::select(feature_name:with_ms2, dplyr::everything()) %>%
+                               with_ms2 = numeric(),
+                               ms2_purity = numeric()) %>%
+                 dplyr::select(feature_name:ms2_purity, dplyr::everything()) %>%
                  dplyr::select(-idx)
              }
 
@@ -3645,3 +3982,26 @@ setGeneric(name = 'generate_summary_table',
 
 
 
+
+
+################################################################################
+# startup massage --------------------------------------------------------------
+.onAttach <- function(libname, pkgname){
+  packageStartupMessage("
+Version 0.1.15
+-------------
+Authors: Zhiwei Zhou
+Maintainer: Zhiwei Zhou
+
+Updates
+-------------
+o add gnps_bile_acid, gnps_acyl_amides, gnps_acyl_esters, all_public options in database
+o add parameter export
+o add object slot in the AnnotationParameterClass
+
+-------------
+DoddLabMetID 0.1.16
+* adjust the merge_one_modes function
+* add merge and export ms2 spec for manual check
+")
+}

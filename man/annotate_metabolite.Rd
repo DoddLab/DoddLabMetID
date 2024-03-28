@@ -13,7 +13,8 @@ annotate_metabolite(
   path = ".",
   lib_db,
   polarity = c("positive", "negative"),
-  lib = c("dodd", "msdial"),
+  lib = c("dodd", "msdial", "peptide", "gnps_bile_acid", "gnps_acyl_amides",
+    "gnps_acyl_esters", "all_public"),
   column = c("hilic", "c18"),
   ce = c("20", "10", "40"),
   adduct_list = c("[M+H]+"),
@@ -33,10 +34,15 @@ annotate_metabolite(
   matched_frag_cutoff = 1,
   direction = c("reverse", "forward"),
   scoring_approach = c("dp", "bonanza", "hybrid", "gnps"),
-  is_plot_ms2 = TRUE
+  is_plot_ms2 = TRUE,
+  ...
 )
 }
 \arguments{
+\item{object}{= NULL,}
+
+\item{parameter_set_annotation}{parameter set}
+
 \item{ms1_file}{The name of ms1 peak table. Column 1 is "name", Column 2 is "mz" and column is "rt".}
 
 \item{ms2_file}{Default: NULL}
@@ -45,11 +51,11 @@ annotate_metabolite(
 
 \item{path}{Default: '.'}
 
-\item{lib}{Default: 'zhuMetLib'}
+\item{lib}{'dodd', 'msdial', 'peptide', 'gnps_bile_acid', 'gnps_acyl_amides', 'gnps_acyl_esters', 'all_public'. Default: 'dodd'}
 
 \item{column}{"hilic", "rp"}
 
-\item{ce}{"10", "20", "30", "35,15", "40", "50". Default: "30"}
+\item{ce}{"10", "20", "40". Default: "30"}
 
 \item{mz_tol}{ms1 match. Default: 25 ppm}
 
@@ -80,12 +86,6 @@ annotate_metabolite(
 \item{scoring_approach}{spectral match approach, including 'dp', 'bonanza', 'hybrid', 'gnps'. Default: 'dp'.}
 
 \item{is_plot_ms2}{Output MS2 match plot or not. Default: TRUE}
-
-\item{metdna_version}{'version1', 'version2'. Default: "version1"}
-
-\item{instrument}{The instrument you used to acquire data. "AgilentQTOF", "SciexTripleTOF", "BrukerQTOF", "ThermoOrbitrap", "ThermoExploris". Default: "SciexTripleTOF"}
-
-\item{method_lc}{'Amide12min', 'Amide23min'. Default: 'Amide12min'}
 
 \item{excluded_adduct}{adduct list for exclusion. Default: NULL}
 
@@ -135,6 +135,7 @@ object <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project
                                                 polarity = 'positive',
                                                 is_rt_score = TRUE,
                                                 is_ms2_score = TRUE)
+annotate_metabolite(parameter_set_annotation = parameter_set_annotation)
 }
 }
 \author{
