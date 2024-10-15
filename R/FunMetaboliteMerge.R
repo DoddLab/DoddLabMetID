@@ -15,7 +15,10 @@
 
 merge_one_modes <- function(path = '.',
                             column = c('hilic', 'c18'),
-                            polarity = c('positive', 'negative')) {
+                            polarity = c('positive', 'negative'),
+                            rt_error_tol = 15,
+                            mz_error_tol = 10) {
+  # browser()
   list_dir <- list.files(path)
   list_result <- vector(mode='list', length=3)
 
@@ -33,18 +36,21 @@ merge_one_modes <- function(path = '.',
       dplyr::select(feature_name:inchikey, inchikey1, everything()) %>%
       dplyr::mutate(confidence_level = 'Level1')
 
-    # remove replication: keep the highest ms2 score candidate
+    # remove replication:
+      # 1. keep the candidate follow id, DXXX > SXXX > IXXX
+      # 2. keep the highest ms2 score candidate
+
     annot_table_mz_rt_ms2 <- pbapply::pblapply(unique(annot_table_mz_rt_ms2$feature_name), function(x){
       annot_table_mz_rt_ms2 %>%
         dplyr::filter(feature_name == x) %>%
-        dplyr::arrange(desc(msms_score_reverse)) %>%
+        dplyr::arrange(id, desc(rt_score), desc(msms_score_reverse)) %>%
         dplyr::distinct(inchikey1, .keep_all = TRUE)
     }) %>%
       dplyr::bind_rows()
 
     annot_table_mz_rt_ms2 <- annot_table_mz_rt_ms2 %>%
-      dplyr::filter((mz <= 150) | (mz_error <= 10)) %>%
-      dplyr::filter(rt_error <= 15)
+      dplyr::filter((mz <= 150) | (mz_error <= mz_error_tol)) %>%
+      dplyr::filter(rt_error <= rt_error_tol)
 
     list_result[[1]] <- annot_table_mz_rt_ms2
   }
@@ -74,8 +80,8 @@ merge_one_modes <- function(path = '.',
 
     # additional filtering
     annot_table_mz_rt <- annot_table_mz_rt %>%
-      dplyr::filter((mz <= 150) | (mz_error <= 10)) %>%
-      dplyr::filter(rt_error <= 15)
+      dplyr::filter((mz <= 150) | (mz_error <= mz_error_tol)) %>%
+      dplyr::filter(rt_error <= rt_error_tol)
 
     list_result[[2]] <- annot_table_mz_rt
   }
@@ -403,3 +409,383 @@ plot_merge_ms2 <- function(path = '.',
   cat('Done\n')
 
 }
+
+
+################################################################################
+# generate_annot_table_manual --------------------------------------------------
+# generate annotation table with class information
+
+#' @title generate_annot_table_manual
+#' @author Zhiwei Zhou
+#' @param annot_table_file annotation table file
+#' @param previous_annot_file previous annotation file
+#' @param correct_table_file corrected compound table file
+#' @param dir_path '.'
+#' @return
+#' @importFrom magrittr %>%
+#' @importFrom crayon blue red yellow green bgRed
+#' @importFrom stringr str_detect str_extract
+#' @export
+#' @examples
+#' generate_annot_table_manual(annot_table_file = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/merge_annotation_manual_24626.xlsx',
+#'                            previous_annot_file = '~/Project/00_IBD_project/Data/20240402_CD_non_IBD_analysis/annot_table_with_class_update_240403.xlsx',
+#'                            correct_table_file = '~/Project/04_package/00_Database/DoddLib/01_compound_RT_lib/05_version_231220/corrected_compound_table_231220.xlsx')
+
+# annot_table_file = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/merge_annotation_manual_24626.xlsx'
+# previous_annot_file = '~/Project/00_IBD_project/Data/20240402_CD_non_IBD_analysis/annot_table_with_class_update_240403.xlsx'
+# correct_table_file = '~/Project/04_package/00_Database/DoddLib/01_compound_RT_lib/05_version_231220/corrected_compound_table_231220.xlsx'
+# dir_path = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing'
+
+generate_annot_table_manual <- function(annot_table_file,
+                                        previous_annot_file = '.',
+                                        correct_table_file = '.',
+                                        dir_path = '.') {
+
+  cat('Correct metabolite information ...\n')
+  annot_table <- correct_annot_table(annot_table_file = annot_table_file,
+                                     correct_table_file = correct_table_file)
+
+  cat('Add metabolite class information ...\n')
+  annot_table <- add_class_info(annot_table = annot_table,
+                                previous_annot_file = previous_annot_file)
+
+  cat('Compare with previous data...\n')
+  annot_table <- compare_previous_annotation(annot_table = annot_table,
+                                             previous_annot_file = previous_annot_file)
+
+  cat('Write annotation table with class information ...\n')
+  dir.create(file.path(dir_path, '00_manual_check_merge'), showWarnings = FALSE, recursive = TRUE)
+  writexl::write_xlsx(annot_table,
+                      path = file.path(dir_path, '00_manual_check_merge', 'manual_check_annotation_table_with_class_info.xlsx'),
+                      format_headers = FALSE)
+
+}
+
+
+
+
+
+
+
+################################################################################
+  # compare_previous_annotation --------------------------------------------------
+# compare with previous annotation result
+
+#' @title compare_previous_annotation
+#' @description compare previous annotation with current annotation, and add a column with previous check result
+#' @author Zhiwei Zhou
+#' @param annot_table_file new annotation file
+#' @param previous_annot_file previous annotation file
+#' @return a data frame with previous check result. The column "previous_check" is the result of previous annotation check. "-1" means no previous annotation, "0" means not match, "1" means match.
+#' @importFrom magrittr %>%
+#' @importFrom crayon blue red yellow green bgRed
+#' @importFrom stringr str_detect str_extract
+#' @export
+#' @examples
+#' test <- compare_previous_annotation(annot_table_file = '~/Project/00_IBD_project/Data/20240402_CD_non_IBD_analysis/annot_table_with_class_update_240403.xlsx',
+#'                                     current_annot_file = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/merge_annotation_manual_24626.xlsx')
+
+
+
+# test <- compare_previous_annotation(annot_table_file = '~/Project/00_IBD_project/Data/20240402_CD_non_IBD_analysis/annot_table_with_class_update_240403.xlsx',
+#                                     current_annot_file = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/merge_annotation_manual_24626.xlsx')
+
+
+compare_previous_annotation <- function(annot_table,
+                                        annot_table_file = '.',
+                                        previous_annot_file = '.') {
+  # browser()
+  cat('Read previous annotation file ...\n')
+  previous_annot <- readxl::read_xlsx(previous_annot_file)
+
+  cat('Read current annotation file ...\n')
+  if (missing(annot_table)) {
+    current_annot <- readxl::read_xlsx(annot_table_file)
+  } else {
+    current_annot <- annot_table
+  }
+
+  cat('Start to compare previous annotation with current annotation ...\n')
+  unique_inchikey <- unique(previous_annot$inchikey1)
+  previous_candidate_list <- lapply(seq_along(unique_inchikey), function(i){
+    # cat(i, ' ')
+    x <- unique_inchikey[i]
+    temp_previous <- previous_annot %>%
+      dplyr::filter(inchikey1 == x)
+
+    if (nrow(temp_previous) == 1) {
+      previous_column <- temp_previous$column[1]
+      previous_polarity <- temp_previous$polarity[1]
+      previous_rt <- temp_previous$rt[1]
+      previous_mz <- temp_previous$mz[1]
+
+      temp_merge <- current_annot %>%
+        dplyr::filter(inchikey1 == x) %>%
+        dplyr::filter(column == previous_column,
+                      polarity == previous_polarity)
+
+
+      if (nrow(temp_merge) == 0) {
+        return(NULL)
+      }
+
+      temp_merge <- temp_merge %>%
+        dplyr::mutate(previous_column = previous_column,
+                      previous_polarity = previous_polarity,
+                      previous_rt = previous_rt,
+                      previous_mz = previous_mz) %>%
+        dplyr::mutate(rt_diff = abs(rt - previous_rt),
+                      mz_diff = abs(mz - previous_mz)) %>%
+        dplyr::select(feature_name:rt, column, polarity, previous_rt, rt_diff, previous_mz, mz_diff,
+                      id, name, inchikey, inchikey1, adduct)
+    } else {
+
+      previous_column <- temp_previous$column[1]
+      previous_polarity <- temp_previous$polarity[1]
+      previous_rt <- temp_previous$rt
+      previous_mz <- temp_previous$mz
+
+      temp_merge <- current_annot %>%
+        dplyr::filter(inchikey1 == x) %>%
+        dplyr::filter(column == previous_column,
+                      polarity == previous_polarity)
+
+      if (nrow(temp_merge) == 0) {
+        return(NULL)
+      }
+
+      # select the minimum RT error feature as standard
+      temp_idx <- sapply(temp_merge$rt, function(x){
+        which.min(abs(x - previous_rt))
+      })
+      previous_rt <- previous_rt[temp_idx]
+      previous_mz <- previous_mz[temp_idx]
+
+      temp_merge <- temp_merge %>%
+        dplyr::mutate(previous_column = previous_column,
+                      previous_polarity = previous_polarity,
+                      previous_rt = previous_rt,
+                      previous_mz = previous_mz) %>%
+        dplyr::mutate(rt_diff = abs(rt - previous_rt),
+                      mz_diff = abs(mz - previous_mz)) %>%
+        dplyr::select(feature_name:rt, column, polarity, previous_rt, rt_diff, previous_mz, mz_diff,
+                      id, name, inchikey, inchikey1, adduct)
+    }
+
+
+    temp_merge <- temp_merge %>%
+      dplyr::filter(rt_diff <= 15,
+                    mz_diff <= 10) %>%
+      dplyr::arrange(rt_diff, mz_diff)
+
+    if (nrow(temp_merge) == 0) {
+      return(NULL)
+    } else {
+      temp_correct <- temp_merge %>% dplyr::pull(feature_name)
+      return(temp_correct)
+    }
+
+  })
+
+
+  names(previous_candidate_list) <- unique_inchikey
+
+
+  label_previous_check <- sapply(seq_along(current_annot$inchikey1), function(i){
+    temp_inchikey <- current_annot$inchikey1[i]
+    temp_feature_name <- current_annot$feature_name[i]
+
+    if (temp_inchikey %in% names(previous_candidate_list)) {
+      temp_previous <- previous_candidate_list[[temp_inchikey]]
+      if (length(temp_previous) == 0) {
+        return(-1)
+      } else {
+        if (temp_feature_name %in% temp_previous) {
+          return(1)
+        } else {
+          return(0)
+        }
+      }
+    } else {
+      return(-1)
+    }
+  })
+
+  current_annot_result <- current_annot %>%
+    dplyr::mutate(previous_check = label_previous_check)
+
+  cat('Done!\n')
+  return(current_annot_result)
+}
+
+
+
+################################################################################
+  # correct_annot_table --------------------------------------------------------
+#' @title correct_annot_table
+#' @description correct the metabolite infor in the annotation table using the corrected compound table
+#' @author Zhiwei Zhou
+#' @param annot_table_file annotation table file
+#' @param correct_table_file corrected compound table file
+#' @return a data frame with corrected metabolite information
+#' @importFrom magrittr %>%
+#' @importFrom crayon blue red yellow green bgRed
+#' @importFrom stringr str_detect str_extract
+#' @export
+#' @examples
+#' test2 <- correct_annot_table(annot_table_file = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/merge_annotation_manual_24626.xlsx',
+#'                             correct_table_file = '~/Project/04_package/00_Database/DoddLib/01_compound_RT_lib/05_version_231220/corrected_compound_table_231220.xlsx')
+
+#
+# test2 <- correct_annot_table(annot_table_file = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/merge_annotation_manual_24626.xlsx',
+#                              correct_table_file = '~/Project/04_package/00_Database/DoddLib/01_compound_RT_lib/05_version_231220/corrected_compound_table_231220.xlsx')
+
+
+correct_annot_table <- function(annot_table_file = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/merge_annotation_manual_24626.xlsx',
+                                correct_table_file = '~/Project/04_package/00_Database/DoddLib/01_compound_RT_lib/05_version_231220/corrected_compound_table_231220.xlsx') {
+
+  cat('Correct the annotation table ...\n')
+  annot_table <- readxl::read_xlsx(annot_table_file)
+  correct_table <- readxl::read_xlsx(correct_table_file)
+
+  idx <- match(annot_table$id, correct_table$id)
+  temp_idx <- which(!is.na(idx))
+
+  if (length(temp_idx) == 0) {
+    return(annot_table)
+  } else {
+    temp_idx2 <- idx[temp_idx]
+  }
+
+  annot_table$name[temp_idx] <- correct_table$compound_name[temp_idx2]
+  annot_table$formula[temp_idx] <- correct_table$formula[temp_idx2]
+  annot_table$smiles[temp_idx] <- correct_table$smiles[temp_idx2]
+  annot_table$inchikey[temp_idx] <- correct_table$inchikey[temp_idx2]
+  annot_table$inchikey1[temp_idx] <- correct_table$inchikey1[temp_idx2]
+
+  cat('Done!\n')
+  return(annot_table)
+}
+
+
+
+################################################################################
+  # add_class_info -------------------------------------------------------------
+#' @title add_class_info
+#' @param annot_table_file annotation table
+#' @param previous_annot_file previous annotation table
+#' @return a data frame with classfire information
+#' @importFrom magrittr %>%
+#' @importFrom crayon blue red yellow green bgRed
+#' @importFrom stringr str_detect str_extract
+#' @export
+#' @examples
+#' test3 <- add_class_info(annot_table_file = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/merge_annotation_manual_24626.xlsx',
+#'                        previous_annot_file = '~/Project/00_IBD_project/Data/20240402_CD_non_IBD_analysis/annot_table_with_class_update_240403.xlsx')
+
+add_class_info <- function(annot_table,
+                           annot_table_file = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/merge_annotation_manual_24626.xlsx',
+                           previous_annot_file = '~/Project/00_IBD_project/Data/20240402_CD_non_IBD_analysis/annot_table_with_class_update_240403.xlsx') {
+  cat('Correct the annotation table with classfire information ...\n')
+  if (missing(annot_table)) {
+    annot_table <- readxl::read_xlsx(annot_table_file) %>%
+      dplyr::mutate(superclass = NA,
+                    class = NA,
+                    subclass = NA,
+                    direct_parent = NA,
+                    class1_manual = NA,
+                    class2_manual = NA)
+  }
+
+  annot_table <- annot_table %>%
+    dplyr::mutate(superclass = NA,
+                  class = NA,
+                  subclass = NA,
+                  direct_parent = NA,
+                  class1_manual = NA,
+                  class2_manual = NA)
+
+  classfire_table <- readxl::read_xlsx(previous_annot_file)
+
+  idx <- match(annot_table$inchikey1, classfire_table$inchikey1)
+  temp_idx <- which(!is.na(idx))
+
+  if (length(temp_idx) == 0) {
+    return(annot_table)
+  } else {
+    temp_idx2 <- idx[temp_idx]
+  }
+
+  annot_table$class[temp_idx] <- classfire_table$class[temp_idx2]
+  annot_table$subclass[temp_idx] <- classfire_table$subclass[temp_idx2]
+  annot_table$superclass[temp_idx] <- classfire_table$superclass[temp_idx2]
+  annot_table$direct_parent[temp_idx] <- classfire_table$direct_parent[temp_idx2]
+  annot_table$class1_manual[temp_idx] <- classfire_table$class1_manual[temp_idx2]
+  annot_table$class2_manual[temp_idx] <- classfire_table$class2_manual[temp_idx2]
+
+
+  # for NA values, search the classfire database
+  temp_classfire <- annot_table %>%
+    dplyr::filter(is.na(superclass)) %>%
+    dplyr::select(inchikey) %>%
+    dplyr::distinct() %>%
+    dplyr::pull(inchikey) %>%
+    lapply(function(x){
+      result <- classyfireR::get_classification(x)
+      return(result)
+    })
+
+
+  # Run classyfire classification
+  classfire_table <- pbapply::pblapply(temp_classfire, function(x){
+    slot_name <- slotNames(x)
+
+    if (!('classification' %in% slot_name)) {
+      return(NULL)
+    }
+
+    if (!('meta' %in% slot_name)) {
+      return(NULL)
+    }
+
+    inchikey <- x@meta$inchikey %>% stringr::str_replace('InChIKey=', '')
+
+    if ('direct_parent' %in% slot_name) {
+      direct_parent_name <- x@direct_parent$name
+      result <- x@classification %>%
+        dplyr::select(-CHEMONT) %>%
+        dplyr::add_row(Level = 'direct_parent',
+                       Classification = direct_parent_name) %>%
+        dplyr::mutate(inchikey = inchikey)
+
+    } else {
+      result <- x@classification %>%
+        dplyr::select(-CHEMONT) %>%
+        dplyr::mutate(inchikey = inchikey)
+    }
+
+    return(result)
+  })
+
+  classfire_table <- classfire_table %>%
+    dplyr::bind_rows() %>%
+    dplyr::distinct(inchikey, Level, .keep_all = TRUE) %>%
+    tidyr::pivot_wider(names_from = 'Level', values_from = 'Classification')
+
+  temp_idx <- is.na(annot_table$superclass) %>% which()
+  temp_idx2 <- match(annot_table$inchikey[temp_idx], classfire_table$inchikey)
+
+  annot_table$class[temp_idx] <- classfire_table$class[temp_idx2]
+  annot_table$subclass[temp_idx] <- classfire_table$subclass[temp_idx2]
+  annot_table$superclass[temp_idx] <- classfire_table$superclass[temp_idx2]
+  annot_table$direct_parent[temp_idx] <- classfire_table$direct_parent[temp_idx2]
+
+
+  cat('Done!\n')
+  return(annot_table)
+}
+
+
+
+################################################################################
+

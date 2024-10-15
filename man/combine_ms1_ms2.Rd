@@ -9,7 +9,7 @@ combine_ms1_ms2(
   ms2_data,
   mz_tol_combine_ms1_ms2 = 15,
   rt_tol_combine_ms1_ms2 = 15,
-  ms2_type = c("mgf", "mzXML", "mzML")
+  ms2_type = c("mgf", "msp", "mzXML", "mzML")
 )
 }
 \arguments{

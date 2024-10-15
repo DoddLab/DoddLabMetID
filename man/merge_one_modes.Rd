@@ -7,7 +7,9 @@
 merge_one_modes(
   path = ".",
   column = c("hilic", "c18"),
-  polarity = c("positive", "negative")
+  polarity = c("positive", "negative"),
+  rt_error_tol = 15,
+  mz_error_tol = 10
 )
 }
 \arguments{

@@ -30,3 +30,17 @@
 #### DoddLabMetID 0.1.16
 * adjust the merge_one_modes function
 * add merge and export ms2 spec for manual check
+
+#### DoddLabMetID 0.1.17 (20240424)
+* add msdial_lipid option, and class_adduct_list parameter
+
+#### DoddLabMetID 0.1.18 (20240626)
+* modify the order function (dodd lab id, RT) for level 1 annotation in the merge_one_mode function
+
+#### DoddLabMetID 0.1.19 (20240706)
+* add functions: correct_annot_table, compare_previous_annotation, and add_class_info
+
+#### DoddLabMetID 0.1.20 (20241015)
+* add functions: generate_input_from_msp
+* add a ms2_file variable in the AnnotationParameterClass to support defined ms2_file
+* fix the bug that msp file can't be correctly aligned with MS1 table

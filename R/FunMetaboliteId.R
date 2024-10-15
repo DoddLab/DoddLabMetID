@@ -147,10 +147,11 @@ setGeneric(name = "annotate_metabolite",
                           # parameters of loadDB
                           lib_db,
                           polarity = c("positive", "negative"),
-                          lib = c('dodd', 'msdial', 'peptide', 'gnps_bile_acid', 'gnps_acyl_amides', 'gnps_acyl_esters', 'all_public'),
+                          lib = c('dodd', 'msdial', 'peptide', 'gnps_bile_acid', 'gnps_acyl_amides', 'gnps_acyl_esters', 'msdial_lipid', 'all_public'),
                           column = c("hilic", "c18"),
                           ce = c("20", "10", "40"),
                           adduct_list = c('[M+H]+'),
+                          class_adduct_list = NULL,
 
                           # parameters of matchMs1WithSpecLib
                           mz_tol = 15,
@@ -197,6 +198,7 @@ setGeneric(name = "annotate_metabolite",
                column <- parameter_set_annotation@para_load_db$column
                ce <- parameter_set_annotation@para_load_db$ce
                adduct_list <- parameter_set_annotation@para_load_db$adduct_list
+               class_adduct_list <- parameter_set_annotation@para_load_db$class_adduct_list
 
                mz_tol <- parameter_set_annotation@para_ms1_match$mz_tol
                mz_ppm_thr <- parameter_set_annotation@para_ms1_match$mz_ppm_thr
@@ -239,6 +241,7 @@ setGeneric(name = "annotate_metabolite",
                'column' = column,
                'ce' = ce,
                'adduct_list' = paste(adduct_list, collapse = ';'),
+               'class_adduct_list' = paste(class_adduct_list, collapse = ';'),
                'mz_tol' = paste(mz_tol, collapse = ';'),
                'mz_ppm_thr' = paste(mz_ppm_thr, collapse = ';'),
                'pf_rt_range' = paste(pf_rt_range, collapse = ';'),
@@ -300,7 +303,8 @@ setGeneric(name = "annotate_metabolite",
                                                        column = column,
                                                        ce = ce,
                                                        polarity = polarity,
-                                                       adduct_list = adduct_list)
+                                                       adduct_list = adduct_list,
+                                                       class_adduct_list = class_adduct_list)
 
                # lib_db <- load_spec_db(lib = lib,
                #                        column = column,
@@ -842,6 +846,9 @@ setMethod(f = "show",
             cat("Column:", object@para_load_db$column, "\n")
             cat("Collision energy:", object@para_load_db$ce, "\n")
             cat("Adduct lists:", paste(object@para_load_db$adduct_list, collapse = ';'), "\n")
+            cat("Class adduct lists:", ifelse(length(object@para_load_db$class_adduct_list) == 0,
+                                              'All',
+                                              paste(object@para_load_db$class_adduct_list, collapse = ';')), "\n")
             cat("------------------------------\n")
             message(crayon::blue("MS1 match parameters:"))
             cat("MS1 tolerance (ppm):", object@para_ms1_match$mz_tol, "\n")
@@ -905,15 +912,17 @@ setGeneric(name = 'initialize_annotation_parameter_class',
            def = function(
     object = NULL,
     ms1_file = 'data.csv',
+    ms2_file = NULL,
     ms2_type = c('mzML', "mzXML", "mgf", "msp"),
     path = ".",
-    lib = c('dodd', 'msdial', 'peptide', 'gnps_bile_acid', 'gnps_acyl_amides', 'gnps_acyl_esters', 'all_public'),
+    lib = c('dodd', 'msdial', 'peptide', 'gnps_bile_acid', 'gnps_acyl_amides', 'gnps_acyl_esters', 'msdial_lipid', 'all_public'),
     ce = c("20", "10", "40"),
     column = c("hilic", "c18"),
     polarity = c('positive', 'negative'),
     is_rt_score = TRUE,
     is_ms2_score = TRUE
            ){
+             # browser()
              ms2_type <- match.arg(ms2_type)
              lib <- match.arg(lib)
              ce <- match.arg(ce)
@@ -923,13 +932,10 @@ setGeneric(name = 'initialize_annotation_parameter_class',
              message(crayon::blue('Initialize raw ms parameter class...\n'))
 
              temp <- list.files(path)
-             if (any(temp == 'ms2')) {
+             if (length(ms2_file) == 0 & any(temp == 'ms2')) {
                ms2_file <- list.files(file.path(path, 'ms2'))
                ms2_file <- file.path('ms2', ms2_file)
-             } else {
-               ms2_file <- NULL
              }
-
 
              # general parameter
              para_general <- list(
@@ -947,7 +953,8 @@ setGeneric(name = 'initialize_annotation_parameter_class',
                'lib' = lib,
                'column' = column,
                'ce' = ce,
-               'adduct_list' = ifelse(polarity == 'positive', '[M+H]+', '[M-H]-')
+               'adduct_list' = ifelse(polarity == 'positive', '[M+H]+', '[M-H]-'),
+               'class_adduct_list' = NULL
              )
 
              # ms1 match parameter
@@ -2924,7 +2931,7 @@ setGeneric(name = "combine_ms1_ms2",
                     ms2_data,
                     mz_tol_combine_ms1_ms2 = 15,
                     rt_tol_combine_ms1_ms2 = 15,
-                    ms2_type = c("mgf", "mzXML", 'mzML')){
+                    ms2_type = c("mgf", 'msp', "mzXML", 'mzML')){
              # browser()
 
              ms2_info <- ms2_data$info
@@ -4001,7 +4008,25 @@ o add object slot in the AnnotationParameterClass
 
 -------------
 DoddLabMetID 0.1.16
-* adjust the merge_one_modes function
-* add merge and export ms2 spec for manual check
+o adjust the merge_one_modes function
+o add merge and export ms2 spec for manual check
+
+-------------
+DoddLabMetID 0.1.17 (20240424)
+o add msdial_lipid option, and class_adduct_list parameter
+
+-------------
+DoddLabMetID 0.1.18 (20240626)
+o modify the order function (dodd lab id, RT) for level 1 annotation in the merge_one_mode function
+
+-------------
+DoddLabMetID 0.1.19 (20240706)
+o add functions: correct_annot_table, compare_previous_annotation, and add_class_info
+
+-------------
+DoddLabMetID 0.1.20 (20241015)
+o add functions: generate_input_from_msp
+o add a ms2_file variable in the AnnotationParameterClass to support defined ms2_file
+o fix the bug that msp file can't be correctly aligned with MS1 table
 ")
 }

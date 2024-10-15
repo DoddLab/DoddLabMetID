@@ -7,10 +7,11 @@
 initialize_annotation_parameter_class(
   object = NULL,
   ms1_file = "data.csv",
+  ms2_file = NULL,
   ms2_type = c("mzML", "mzXML", "mgf", "msp"),
   path = ".",
   lib = c("dodd", "msdial", "peptide", "gnps_bile_acid", "gnps_acyl_amides",
-    "gnps_acyl_esters", "all_public"),
+    "gnps_acyl_esters", "msdial_lipid", "all_public"),
   ce = c("20", "10", "40"),
   column = c("hilic", "c18"),
   polarity = c("positive", "negative"),

@@ -181,3 +181,75 @@
 
 # path_output <- '~/Project/00_IBD_project/Data/20231205_IBD_enorllment/c18_pos/01_metabolite_annotation_dodd_mz_rt_ms2'
 # load(file.path(path_output, "00_intermediate_data", 'ms1_result'))
+
+#
+################################################################################
+# Metabolite identification ----------------------------------------------------
+# C18 pos --------------------------------------------------------------------
+# setwd('~/Project/00_IBD_project/Data/20240329_update_annotation_table_for_discussion/')
+#
+#
+# # library(DoddLabPackages)
+# library(DoddLabMetID)
+# library(DoddLabDatabase)
+#
+# load('~/Project/00_IBD_project/Data/20240329_update_annotation_table_for_discussion//c18_pos/05_object_c18_pos_outlier_removal.RData')
+#
+# # mz + RT + ms2
+# parameter_set_annotation <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project/Data/20240329_update_annotation_table_for_discussion/c18_pos/',
+#                                                                   lib = 'dodd',
+#                                                                   column = 'c18',
+#                                                                   polarity = 'positive',
+#                                                                   is_rt_score = TRUE,
+#                                                                   is_ms2_score = TRUE)
+# parameter_set_annotation@para_ms1_match$mz_tol <- 10
+# parameter_set_annotation@para_ms1_match$mz_ppm_thr <- 200
+# parameter_set_annotation@para_ms2_match$dp_cutoff <- 0.8
+# parameter_set_annotation@para_ms2_match$direction <- 'reverse'
+# annotate_metabolite(object = object_c18_pos, parameter_set_annotation)
+#
+# file.rename(from = '~/Project/00_IBD_project/Data/20240329_update_annotation_table_for_discussion/c18_pos/01_metabolite_annotation', to = './01_metabolite_annotation_dodd_mz_rt_ms2')
+
+
+
+# ################################################################################
+# library(DoddLabMetID)
+# library(DoddLabDatabase)
+#
+# load('~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/c18_pos/01_input_data_cleaning/05_object_c18_pos_outlier_removal.RData')
+#
+# # mz + RT + ms2
+# parameter_set_annotation <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/c18_pos/',
+#                                                                   lib = 'dodd',
+#                                                                   column = 'c18',
+#                                                                   polarity = 'positive',
+#                                                                   is_rt_score = TRUE,
+#                                                                   is_ms2_score = TRUE)
+# parameter_set_annotation@para_ms1_match$mz_tol <- 10
+# parameter_set_annotation@para_ms1_match$mz_ppm_thr <- 200
+# parameter_set_annotation@para_ms2_match$dp_cutoff <- 0.8
+# parameter_set_annotation@para_ms2_match$direction <- 'reverse'
+# annotate_metabolite(object = object_c18_pos, parameter_set_annotation)
+#
+# file.rename(from = './01_metabolite_annotation', to = './01_metabolite_annotation_dodd_mz_rt_ms2')
+#
+# merge_one_modes(path = '~/Project/00_IBD_project/Data/20240524_B001_B033_data_processing/c18_pos/',column = 'c18', polarity = 'positive')
+
+
+
+# load('~/Project/00_IBD_project/Data/20240919_IBD_B001_B044_analysis/c18_neg/01_input_data_cleaning/03_object_c18_neg_serrf.RData')
+#
+# # mz + RT + ms2
+# parameter_set_annotation <- initialize_annotation_parameter_class(path = '~/Project/00_IBD_project/Data/20240919_IBD_B001_B044_analysis/c18_neg/',
+#                                                                   lib = 'dodd',
+#                                                                   column = 'c18',
+#                                                                   polarity = 'negative',
+#                                                                   is_rt_score = TRUE,
+#                                                                   is_ms2_score = TRUE)
+# parameter_set_annotation@para_ms1_match$mz_tol <- 10
+# parameter_set_annotation@para_ms1_match$mz_ppm_thr <- 200
+# parameter_set_annotation@para_ms2_match$dp_cutoff <- 0.8
+# parameter_set_annotation@para_ms2_match$direction <- 'reverse'
+# annotate_metabolite(object = object_c18_neg_serrf, parameter_set_annotation)
+#
+# file.rename(from = './01_metabolite_annotation', to = './01_metabolite_annotation_dodd_mz_rt_ms2')
